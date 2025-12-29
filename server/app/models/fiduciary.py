@@ -29,3 +29,4 @@ class DataFiduciary(Base):
     # Relationships
     purposes = relationship("Purpose", back_populates="fiduciary")
     consents = relationship("Consent", back_populates="fiduciary")
+    webhooks = relationship("Webhook", back_populates="fiduciary", cascade="all, delete-orphan")
