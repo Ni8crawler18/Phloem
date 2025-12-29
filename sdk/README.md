@@ -1,97 +1,262 @@
+<div align="center">
+
 # Eigensparse SDK
 
-JavaScript SDK for Eigensparse Consent Management System.
+**Consent Management for the Modern Web**
 
-**DPDP Act 2023 (India) & GDPR (EU) Compliant**
+[![npm version](https://img.shields.io/npm/v/eigensparse-sdk.svg?style=flat-square)](https://www.npmjs.com/package/eigensparse-sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![DPDP Compliant](https://img.shields.io/badge/DPDP%202023-Compliant-green?style=flat-square)](https://www.meity.gov.in/data-protection-framework)
+[![GDPR Compliant](https://img.shields.io/badge/GDPR-Compliant-green?style=flat-square)](https://gdpr.eu/)
+
+[Documentation](https://eigensparse.com) · [Dashboard](https://eigensparse.com) · [Report Bug](https://github.com/Ni8crawler18/Phloem/issues)
+
+</div>
+
+---
+
+## Overview
+
+Eigensparse SDK enables developers to integrate **privacy-first consent management** into any application. Built for compliance with **DPDP Act 2023 (India)** and **GDPR (EU)**.
+
+### Why Eigensparse?
+
+- **Legal Compliance** — Stay compliant with Indian and EU data protection laws
+- **Cryptographic Receipts** — SHA-256 signed consent receipts for audit trails
+- **Simple Integration** — Add consent checks with just a few lines of code
+- **Purpose Binding** — Granular control over data processing purposes
+- **Works Everywhere** — Browser, Node.js, and any JavaScript environment
+
+---
 
 ## Installation
 
-### npm
 ```bash
 npm install eigensparse-sdk
 ```
 
-### CDN
+**Or via CDN:**
+
 ```html
-<script src="https://cdn.jsdelivr.net/npm/eigensparse-sdk/dist/eigensparse.min.js"></script>
+<script src="https://unpkg.com/eigensparse-sdk/dist/eigensparse.min.js"></script>
 ```
+
+---
 
 ## Quick Start
 
-### Browser
-```html
-<script src="eigensparse.min.js"></script>
-<script>
-  const client = Eigensparse.createClient({
-    baseUrl: 'https://api.your-domain.com',
-    apiKey: 'your-fiduciary-api-key'
-  });
+### 1. Get Your API Key
 
-  // Check consent before processing
-  const hasConsent = await client.hasConsent('user@example.com', 'purpose-uuid');
+Sign up at [eigensparse.com](https://eigensparse.com) as a Data Fiduciary and get your API key from the dashboard.
 
-  if (!hasConsent) {
-    client.renderWidget('#consent-container', {
-      theme: 'light',
-      onConsent: (purposeUuids) => console.log('Consented:', purposeUuids)
-    });
-  }
-</script>
-```
+### 2. Initialize the Client
 
-### Node.js
 ```javascript
-const Eigensparse = require('@eigensparse/sdk');
+const Eigensparse = require('eigensparse-sdk');
 
 const client = Eigensparse.createClient({
-  baseUrl: process.env.API_URL,
-  apiKey: process.env.EIGENSPARSE_API_KEY
+  baseUrl: 'https://eigensparse-api.onrender.com/api',
+  apiKey: 'your-api-key'
 });
+```
 
-// Verify consent before processing
+### 3. Check Consent Before Processing Data
+
+```javascript
 async function processUserData(userEmail) {
-  const hasConsent = await client.hasConsent(userEmail, 'data-processing-uuid');
+  const hasConsent = await client.hasConsent(userEmail, 'marketing-purpose-uuid');
+
   if (!hasConsent) {
-    throw new Error('User consent required');
+    throw new Error('User consent required for this operation');
   }
-  // Process data...
+
+  // Safe to process user data
 }
 ```
 
-## API Reference
+---
 
-### `createClient(config)`
+## Usage Examples
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `baseUrl` | string | API base URL |
-| `apiKey` | string | Data Fiduciary API key |
-| `debug` | boolean | Enable console logging |
+### Browser Integration
 
-### Consent Verification
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://unpkg.com/eigensparse-sdk/dist/eigensparse.min.js"></script>
+</head>
+<body>
+  <div id="consent-widget"></div>
 
-```javascript
-// Full consent status
-const status = await client.checkConsent('user@example.com');
-// { has_consent: true, consents: [...] }
+  <script>
+    const client = Eigensparse.createClient({
+      baseUrl: 'https://eigensparse-api.onrender.com/api',
+      apiKey: 'your-api-key'
+    });
 
-// Boolean check for specific purpose
-const hasConsent = await client.hasConsent('user@example.com', 'purpose-uuid');
+    // Check if user has consented
+    async function checkAndShowWidget(userEmail) {
+      const hasConsent = await client.hasConsent(userEmail, 'analytics-uuid');
 
-// Get all user consents
-const consents = await client.getUserConsents('user@example.com');
+      if (!hasConsent) {
+        // Show consent widget
+        client.renderWidget('#consent-widget', {
+          theme: 'light',
+          onConsent: (purposeIds) => {
+            console.log('User consented to:', purposeIds);
+            location.reload();
+          }
+        });
+      }
+    }
+  </script>
+</body>
+</html>
 ```
 
-### Purpose Management
+### Express.js Middleware
 
 ```javascript
-// Get all purposes for your organization
-const purposes = await client.getPurposes();
+const express = require('express');
+const Eigensparse = require('eigensparse-sdk');
 
-// Create a new purpose
+const app = express();
+const client = Eigensparse.createClient({
+  baseUrl: process.env.EIGENSPARSE_URL,
+  apiKey: process.env.EIGENSPARSE_API_KEY
+});
+
+// Middleware to require consent
+function requireConsent(purposeUuid) {
+  return async (req, res, next) => {
+    try {
+      const hasConsent = await client.hasConsent(req.user.email, purposeUuid);
+
+      if (!hasConsent) {
+        return res.status(403).json({
+          error: 'Consent required',
+          purpose_uuid: purposeUuid,
+          consent_url: 'https://eigensparse.com/consent'
+        });
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// Protected route - requires marketing consent
+app.get('/api/recommendations', requireConsent('marketing-uuid'), (req, res) => {
+  res.json({ recommendations: [...] });
+});
+
+// Protected route - requires analytics consent
+app.post('/api/track', requireConsent('analytics-uuid'), (req, res) => {
+  // Track user behavior
+});
+```
+
+### React Hook Example
+
+```javascript
+import { useState, useEffect } from 'react';
+import Eigensparse from 'eigensparse-sdk';
+
+const client = Eigensparse.createClient({
+  baseUrl: process.env.REACT_APP_EIGENSPARSE_URL,
+  apiKey: process.env.REACT_APP_EIGENSPARSE_KEY
+});
+
+function useConsent(userEmail, purposeUuid) {
+  const [hasConsent, setHasConsent] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    client.hasConsent(userEmail, purposeUuid)
+      .then(setHasConsent)
+      .catch(() => setHasConsent(false))
+      .finally(() => setLoading(false));
+  }, [userEmail, purposeUuid]);
+
+  return { hasConsent, loading };
+}
+
+// Usage
+function MarketingBanner({ userEmail }) {
+  const { hasConsent, loading } = useConsent(userEmail, 'marketing-uuid');
+
+  if (loading) return <Spinner />;
+  if (!hasConsent) return <ConsentRequest />;
+
+  return <PersonalizedBanner />;
+}
+```
+
+---
+
+## API Reference
+
+### Initialization
+
+```javascript
+const client = Eigensparse.createClient(config);
+```
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `baseUrl` | `string` | Yes | Eigensparse API URL |
+| `apiKey` | `string` | Yes | Your Data Fiduciary API key |
+| `debug` | `boolean` | No | Enable debug logging |
+
+---
+
+### Consent Methods
+
+#### `checkConsent(email)`
+Get full consent status for a user.
+
+```javascript
+const status = await client.checkConsent('user@example.com');
+// Returns: { has_consent: true, consents: [...] }
+```
+
+#### `hasConsent(email, purposeUuid)`
+Check if user has consented to a specific purpose.
+
+```javascript
+const allowed = await client.hasConsent('user@example.com', 'purpose-uuid');
+// Returns: true | false
+```
+
+#### `getUserConsents(email)`
+Get all consents for a user.
+
+```javascript
+const consents = await client.getUserConsents('user@example.com');
+// Returns: Array of consent objects
+```
+
+---
+
+### Purpose Methods
+
+#### `getPurposes()`
+Get all purposes defined by your organization.
+
+```javascript
+const purposes = await client.getPurposes();
+```
+
+#### `createPurpose(data)`
+Create a new data processing purpose.
+
+```javascript
 const purpose = await client.createPurpose({
   name: 'Marketing Analytics',
-  description: 'Track user behavior for marketing',
+  description: 'Track user behavior for personalized marketing',
   data_categories: ['Usage Data', 'Device Info'],
   retention_period_days: 365,
   legal_basis: 'consent',
@@ -99,59 +264,46 @@ const purpose = await client.createPurpose({
 });
 ```
 
+---
+
 ### UI Components
 
-```javascript
-// Render consent widget
-await client.renderWidget('#container', {
-  theme: 'light',        // or 'dark'
-  locale: 'en',          // or 'hi'
-  onConsent: (ids) => {},
-  onDeny: () => {}
-});
+#### `renderWidget(selector, options)`
+Render a consent management widget.
 
-// Show consent banner
+```javascript
+client.renderWidget('#container', {
+  theme: 'light',      // 'light' | 'dark'
+  locale: 'en',        // 'en' | 'hi'
+  onConsent: (ids) => console.log('Consented:', ids),
+  onDeny: () => console.log('Denied')
+});
+```
+
+#### `showBanner(options)` / `hideBanner()`
+Show or hide a consent banner.
+
+```javascript
 client.showBanner({
-  onAccept: () => {},
+  onAccept: () => console.log('Accepted'),
   onManage: () => client.renderWidget('#modal')
 });
-
-// Hide banner
-client.hideBanner();
 ```
 
-## Express.js Middleware
-
-```javascript
-const Eigensparse = require('@eigensparse/sdk');
-const client = Eigensparse.createClient({ apiKey: process.env.API_KEY });
-
-function requireConsent(purposeUuid) {
-  return async (req, res, next) => {
-    const hasConsent = await client.hasConsent(req.user.email, purposeUuid);
-    if (!hasConsent) {
-      return res.status(403).json({ error: 'Consent required', purpose_uuid: purposeUuid });
-    }
-    next();
-  };
-}
-
-// Usage
-app.get('/analytics', requireConsent('analytics-uuid'), (req, res) => {
-  // Process analytics...
-});
-```
+---
 
 ## Legal Basis Options
 
-| Value | Description |
-|-------|-------------|
-| `consent` | User explicitly agrees |
-| `contract` | Required for service delivery |
-| `legal_obligation` | Required by law |
+| Value | Use Case |
+|-------|----------|
+| `consent` | User explicitly agrees (marketing, analytics) |
+| `contract` | Required to deliver a service |
+| `legal_obligation` | Required by law (tax records) |
 | `vital_interests` | Protect someone's life |
-| `public_task` | Public authority function |
-| `legitimate_interests` | Business necessity |
+| `public_task` | Government/public authority |
+| `legitimate_interests` | Business necessity (fraud prevention) |
+
+---
 
 ## Error Handling
 
@@ -160,25 +312,45 @@ try {
   await client.checkConsent('user@example.com');
 } catch (error) {
   if (error instanceof Eigensparse.EigensparseError) {
-    console.error(`Error: ${error.message}`);
-    console.error(`Status: ${error.statusCode}`);
-    console.error(`Code: ${error.code}`);
+    console.error('Eigensparse Error:', error.message);
+    console.error('Status Code:', error.statusCode);
+    console.error('Error Code:', error.code);
   }
 }
 ```
 
-## TypeScript
+---
 
-Full type definitions included:
+## TypeScript Support
+
+Full TypeScript definitions are included.
 
 ```typescript
-import Eigensparse, { EigensparseClient, ConsentStatus, Purpose } from 'eigensparse-sdk';
+import Eigensparse, {
+  EigensparseClient,
+  ConsentStatus,
+  Purpose
+} from 'eigensparse-sdk';
 
-const client: EigensparseClient = Eigensparse.createClient({ apiKey: 'key' });
+const client: EigensparseClient = Eigensparse.createClient({
+  baseUrl: 'https://eigensparse-api.onrender.com/api',
+  apiKey: 'your-api-key'
+});
+
 const status: ConsentStatus = await client.checkConsent('user@example.com');
 const purposes: Purpose[] = await client.getPurposes();
 ```
 
+---
+
+## Resources
+
+- **Platform**: [eigensparse.com](https://eigensparse.com)
+- **API Docs**: [eigensparse-api.onrender.com/docs](https://eigensparse-api.onrender.com/docs)
+- **GitHub**: [github.com/Ni8crawler18/Phloem](https://github.com/Ni8crawler18/Phloem)
+
+---
+
 ## License
 
-MIT
+MIT © [Ni8crawler18](https://github.com/Ni8crawler18)

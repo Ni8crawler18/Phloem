@@ -1,6 +1,6 @@
 {
   "name": "eigensparse-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Eigensparse Consent Management SDK - DPDP Act & GDPR Compliant",
   "main": "dist/eigensparse.min.js",
   "module": "src/index.js",
