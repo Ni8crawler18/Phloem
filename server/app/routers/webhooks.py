@@ -97,7 +97,9 @@ def create_new_webhook(
 
 
 @router.get("", response_model=List[WebhookResponse])
+@limiter.limit("60/minute")
 def list_webhooks(
+    request: Request,
     current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
     db: Session = Depends(get_db)
 ):

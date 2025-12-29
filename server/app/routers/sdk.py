@@ -4,8 +4,10 @@ Endpoints for SDK consent verification
 """
 import json
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_db
 from app.models import DataFiduciary, User, Purpose, Consent, ConsentStatus
@@ -14,9 +16,14 @@ from app.dependencies.auth import get_fiduciary_by_api_key
 
 router = APIRouter(prefix="/api/sdk", tags=["SDK Integration"])
 
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post("/check-consent")
+@limiter.limit("100/minute")
 def sdk_check_consent(
+    request: Request,
     data: SDKConsentStatusRequest,
     fiduciary: DataFiduciary = Depends(get_fiduciary_by_api_key),
     db: Session = Depends(get_db)
@@ -59,7 +66,9 @@ def sdk_check_consent(
 
 
 @router.get("/purposes")
+@limiter.limit("100/minute")
 def sdk_get_purposes(
+    request: Request,
     fiduciary: DataFiduciary = Depends(get_fiduciary_by_api_key),
     db: Session = Depends(get_db)
 ):

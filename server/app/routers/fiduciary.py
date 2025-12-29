@@ -5,8 +5,10 @@ Endpoints for fiduciary dashboard management
 import json
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database import get_db
 from app.models import (
@@ -23,9 +25,14 @@ from app.dependencies.auth import get_current_fiduciary
 
 router = APIRouter(prefix="/api/fiduciary", tags=["Fiduciary Dashboard"])
 
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/dashboard/stats", response_model=FiduciaryDashboardStats)
+@limiter.limit("60/minute")
 def get_fiduciary_stats(
+    request: Request,
     current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
     db: Session = Depends(get_db)
 ):
@@ -104,7 +111,9 @@ def get_fiduciary_stats(
 
 
 @router.get("/purposes", response_model=List[PurposeResponse])
+@limiter.limit("60/minute")
 def get_fiduciary_purposes(
+    request: Request,
     current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
     db: Session = Depends(get_db)
 ):
@@ -115,7 +124,9 @@ def get_fiduciary_purposes(
 
 
 @router.post("/purposes", response_model=PurposeResponse)
+@limiter.limit("20/minute")
 def create_fiduciary_purpose(
+    request: Request,
     data: PurposeCreate,
     current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
     db: Session = Depends(get_db)
@@ -144,7 +155,9 @@ def create_fiduciary_purpose(
 
 
 @router.put("/purposes/{uuid}", response_model=PurposeResponse)
+@limiter.limit("20/minute")
 def update_fiduciary_purpose(
+    request: Request,
     uuid: str,
     data: PurposeCreate,
     current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
@@ -171,7 +184,9 @@ def update_fiduciary_purpose(
 
 
 @router.delete("/purposes/{uuid}")
+@limiter.limit("20/minute")
 def delete_fiduciary_purpose(
+    request: Request,
     uuid: str,
     current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
     db: Session = Depends(get_db)
@@ -191,7 +206,9 @@ def delete_fiduciary_purpose(
 
 
 @router.get("/consents")
+@limiter.limit("60/minute")
 def get_fiduciary_consents(
+    request: Request,
     status: Optional[str] = None,
     purpose_uuid: Optional[str] = None,
     limit: int = 100,
@@ -236,7 +253,9 @@ def get_fiduciary_consents(
 
 
 @router.post("/api-key/regenerate")
+@limiter.limit("3/minute")
 def regenerate_api_key(
+    request: Request,
     current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
     db: Session = Depends(get_db)
 ):
