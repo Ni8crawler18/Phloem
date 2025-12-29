@@ -216,12 +216,12 @@ function MarketingBanner({ userEmail }) {
               Integrate consent management into your application in minutes.
               DPDP Act 2023 & GDPR compliant.
             </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <div className="flex-responsive-center">
               <a
                 href="https://www.npmjs.com/package/eigensparse-sdk"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-primary"
+                className="btn btn-primary btn-mobile-full"
               >
                 <Package size={16} />
                 View on npm
@@ -230,7 +230,7 @@ function MarketingBanner({ userEmail }) {
                 href="https://github.com/Ni8crawler18/Phloem"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-secondary"
+                className="btn btn-secondary btn-mobile-full"
               >
                 GitHub
               </a>
@@ -246,11 +246,7 @@ function MarketingBanner({ userEmail }) {
         padding: '24px 0',
       }}>
         <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '48px',
-          }}>
+          <div className="flex-responsive-center" style={{ gap: '48px' }}>
             {[
               { label: 'Package', value: 'eigensparse-sdk' },
               { label: 'Version', value: '1.0.1' },

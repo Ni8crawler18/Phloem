@@ -108,7 +108,7 @@ export default function Api() {
       {/* Base URL */}
       <section style={{ padding: '32px 0', borderBottom: '1px solid var(--color-border)' }}>
         <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="flex-responsive" style={{ alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <span style={{
                 fontFamily: 'var(--font-mono)',
@@ -121,7 +121,8 @@ export default function Api() {
                 fontFamily: 'var(--font-mono)',
                 fontSize: '1rem',
                 color: 'var(--color-text)',
-                marginTop: '4px'
+                marginTop: '4px',
+                wordBreak: 'break-all'
               }}>
                 https://eigensparse-api.onrender.com
               </div>
@@ -153,7 +154,7 @@ export default function Api() {
       <section style={{ padding: '32px 0', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
         <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '16px' }}>Authentication</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div className="auto-grid-sm" style={{ gap: '24px' }}>
             <div style={{
               background: 'var(--color-background)',
               border: '1px solid var(--color-border)',
@@ -206,10 +207,10 @@ export default function Api() {
                 {group.items.map((endpoint, index) => (
                   <div
                     key={index}
+                    className="flex-responsive"
                     style={{
-                      display: 'flex',
                       alignItems: 'center',
-                      gap: '16px',
+                      gap: '12px',
                       padding: '16px',
                       background: 'var(--color-surface)',
                       border: '1px solid var(--color-border)',
@@ -226,6 +227,7 @@ export default function Api() {
                       color: methodColors[endpoint.method].color,
                       minWidth: '50px',
                       textAlign: 'center',
+                      flexShrink: 0,
                     }}>
                       {endpoint.method}
                     </span>
@@ -234,10 +236,12 @@ export default function Api() {
                       fontSize: '0.875rem',
                       color: 'var(--color-text)',
                       flex: 1,
+                      minWidth: '150px',
+                      wordBreak: 'break-all',
                     }}>
                       {endpoint.path}
                     </code>
-                    <span style={{
+                    <span className="hide-mobile" style={{
                       fontSize: '0.875rem',
                       color: 'var(--color-text-secondary)',
                       textAlign: 'right',

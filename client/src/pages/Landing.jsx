@@ -55,12 +55,9 @@ export default function Landing() {
         position: 'relative',
         overflow: 'hidden',
       }}>
-        <div className="container" style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '80px',
+        <div className="container auto-grid-lg" style={{
           alignItems: 'center',
-          padding: '80px 24px',
+          padding: '40px 24px',
         }}>
           <div className="animate-fadeInUp">
             <div className="badge badge-primary" style={{ marginBottom: '24px' }}>
@@ -68,7 +65,6 @@ export default function Landing() {
             </div>
 
             <h1 style={{
-              fontSize: '4rem',
               fontWeight: '700',
               lineHeight: '1.1',
               marginBottom: '24px',
@@ -89,18 +85,18 @@ export default function Landing() {
               data permissions with cryptographic audit trails.
             </p>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '48px' }}>
+            <div className="flex-responsive" style={{ marginBottom: '48px' }}>
               <span className="code-label">DPDP Section 6</span>
               <span className="code-label">GDPR Article 7</span>
               <span className="code-label">ISO 27001</span>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <Link to="/register" className="btn btn-primary btn-lg">
+            <div className="flex-responsive">
+              <Link to="/register" className="btn btn-primary btn-lg btn-mobile-full">
                 Launch Console
                 <ArrowRight size={18} />
               </Link>
-              <Link to="/login" className="btn btn-secondary btn-lg">
+              <Link to="/login" className="btn btn-secondary btn-lg btn-mobile-full">
                 <Terminal size={18} />
                 View Dashboard
               </Link>
@@ -130,11 +126,7 @@ export default function Landing() {
         padding: '48px 0',
       }}>
         <div className="container">
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '48px',
-          }}>
+          <div className="auto-grid-sm" style={{ gap: '32px' }}>
             {stats.map((stat, i) => (
               <div key={i} className="stat">
                 <div className="stat-value">{stat.value}</div>
@@ -147,10 +139,7 @@ export default function Landing() {
 
       {/* Protocol Section */}
       <section id="protocol" className="section-lg" style={{ background: 'var(--color-background)' }}>
-        <div className="container" style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '80px',
+        <div className="container auto-grid-lg" style={{
           alignItems: 'center',
         }}>
           <div>
@@ -232,11 +221,7 @@ export default function Landing() {
             </p>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '24px',
-          }}>
+          <div className="auto-grid">
             {features.map((feature, i) => (
               <div key={i} className="card" style={{
                 padding: '32px',
@@ -337,10 +322,7 @@ export default function Landing() {
 
       {/* Compliance Section */}
       <section id="compliance" className="section-lg" style={{ background: 'var(--color-background)' }}>
-        <div className="container" style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '80px',
+        <div className="container auto-grid-lg" style={{
           alignItems: 'center',
         }}>
           <div>
@@ -363,11 +345,7 @@ export default function Landing() {
               Audit-ready from day one.
             </p>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-            }}>
+            <div className="auto-grid-sm" style={{ gap: '16px' }}>
               {complianceItems.map((item, i) => (
                 <div key={i} className="card" style={{ padding: '20px' }}>
                   <div style={{
@@ -411,12 +389,7 @@ export default function Landing() {
         padding: '40px 0',
       }}>
         <div className="container">
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '64px',
-          }}>
+          <div className="flex-responsive-center" style={{ gap: '48px' }}>
             {techStack.map((tech, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{
@@ -480,12 +453,7 @@ export default function Landing() {
         padding: '64px 0 32px',
       }}>
         <div className="container">
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr 1fr 1fr',
-            gap: '64px',
-            marginBottom: '48px',
-          }}>
+          <div className="auto-grid" style={{ marginBottom: '48px' }}>
             {/* Brand */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
@@ -606,10 +574,9 @@ export default function Landing() {
           </div>
 
           {/* Bottom */}
-          <div style={{
+          <div className="flex-responsive" style={{
             borderTop: '1px solid var(--color-border)',
             paddingTop: '24px',
-            display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}>

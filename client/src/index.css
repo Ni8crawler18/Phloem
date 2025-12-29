@@ -428,4 +428,97 @@ a:hover {
   .section {
     padding: var(--space-12) 0;
   }
+
+  /* Hide on mobile */
+  .hide-mobile {
+    display: none !important;
+  }
+
+  /* Show on mobile */
+  .show-mobile {
+    display: flex !important;
+  }
+
+  /* Mobile grid adjustments */
+  .grid-2, .grid-3, .grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Mobile stat adjustments */
+  .stat-value {
+    font-size: 1.75rem;
+  }
+
+  /* Mobile button full width */
+  .btn-mobile-full {
+    width: 100%;
+  }
+}
+
+/* Default: show on desktop, hide mobile menu */
+.show-mobile {
+  display: none;
+}
+
+.hide-mobile {
+  display: flex;
+}
+
+/* Responsive grids */
+.responsive-grid {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 769px) {
+  .responsive-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .responsive-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .responsive-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .responsive-grid-2,
+  .responsive-grid-3,
+  .responsive-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Auto-responsive grids - no media queries needed */
+.auto-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.auto-grid-sm {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.auto-grid-lg {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+}
+
+/* Flex responsive - wraps automatically */
+.flex-responsive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.flex-responsive-center {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
 }
