@@ -17,3 +17,5 @@ Render won't run migrations automatically. You have a few options:
   Since this is a one-time migration, Option 1 (Render Shell) is quickest. Just SSH into your Render service and run the SQL file.
 
   Render migration.
+
+  
