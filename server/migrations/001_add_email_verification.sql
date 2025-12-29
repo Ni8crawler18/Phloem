@@ -2,6 +2,10 @@
 -- Date: 2025-01-01
 -- Description: Adds fields for email verification and password reset functionality
 
+-- Add new audit action enum values
+ALTER TYPE auditaction ADD VALUE IF NOT EXISTS 'email_verified';
+ALTER TYPE auditaction ADD VALUE IF NOT EXISTS 'password_reset';
+
 -- Add email verification and reset fields to users table
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(100);
