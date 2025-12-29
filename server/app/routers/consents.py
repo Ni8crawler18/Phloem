@@ -37,6 +37,7 @@ from app.services.expiry import (
     get_days_until_expiry,
     EXPIRING_SOON_DAYS
 )
+from app.services.export import get_user_export_data, export_to_json, export_to_csv
 from app.dependencies.auth import get_current_user
 from app.models.webhook import WebhookEvent
 
@@ -527,4 +528,66 @@ def renew_consent(
         expires_at=consent.expires_at,
         status="granted",
         signature=receipt.signature
+    )
+
+
+@router.get("/export/json")
+@limiter.limit("5/minute")
+def export_data_json(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Export all user data as JSON (GDPR Article 20 - Right to Portability)
+    """
+    data = get_user_export_data(db, current_user)
+    json_content = export_to_json(data)
+
+    # Audit log
+    create_audit_log(
+        db, AuditAction.DATA_ACCESSED, "export", current_user.uuid,
+        user_id=current_user.id,
+        details={"format": "json", "consents_count": len(data["consents"])},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return StreamingResponse(
+        io.BytesIO(json_content.encode('utf-8')),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f"attachment; filename=eigensparse-export-{current_user.uuid}.json"
+        }
+    )
+
+
+@router.get("/export/csv")
+@limiter.limit("5/minute")
+def export_data_csv(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Export consent data as CSV (GDPR Article 20 - Right to Portability)
+    """
+    data = get_user_export_data(db, current_user)
+    csv_content = export_to_csv(data)
+
+    # Audit log
+    create_audit_log(
+        db, AuditAction.DATA_ACCESSED, "export", current_user.uuid,
+        user_id=current_user.id,
+        details={"format": "csv", "consents_count": len(data["consents"])},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return StreamingResponse(
+        io.BytesIO(csv_content.encode('utf-8')),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=eigensparse-consents-{current_user.uuid}.csv"
+        }
     )

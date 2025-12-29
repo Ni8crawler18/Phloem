@@ -143,10 +143,47 @@ export default function Dashboard() {
     );
   }
 
+  const [exporting, setExporting] = useState(null);
+
+  const handleExportJson = async () => {
+    setExporting('json');
+    try {
+      const blob = await consents.exportJson();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eigensparse-export-${user.uuid || 'data'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to export data');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setExporting('csv');
+    try {
+      const blob = await consents.exportCsv();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eigensparse-consents-${user.uuid || 'data'}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to export data');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const tabs = [
     { id: 'consents', label: 'My Consents', icon: Shield },
     { id: 'available', label: 'Available Purposes', icon: Database },
     { id: 'audit', label: 'Audit Log', icon: History },
+    { id: 'export', label: 'Export Data', icon: Download },
   ];
 
   return (
@@ -679,6 +716,123 @@ export default function Dashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Export Data Tab */}
+        {activeTab === 'export' && (
+          <div>
+            <div className="card" style={{ padding: '32px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Download size={20} />
+                Export Your Data
+              </h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+                Download all your consent data in compliance with GDPR Article 20 (Right to Data Portability)
+                and DPDP Act 2023.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {/* JSON Export */}
+                <div style={{
+                  padding: '24px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-surface)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <FileText size={24} color="var(--color-primary)" />
+                    <div>
+                      <h4 style={{ margin: 0 }}>JSON Format</h4>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+                        Complete data export
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                    Includes your profile, all consents, receipts, and audit logs in a structured format.
+                  </p>
+                  <button
+                    onClick={handleExportJson}
+                    disabled={exporting === 'json'}
+                    className="btn btn-primary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    {exporting === 'json' ? (
+                      <RefreshCw size={18} className="spin" />
+                    ) : (
+                      <Download size={18} />
+                    )}
+                    Download JSON
+                  </button>
+                </div>
+
+                {/* CSV Export */}
+                <div style={{
+                  padding: '24px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-surface)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <Database size={24} color="var(--color-success)" />
+                    <div>
+                      <h4 style={{ margin: 0 }}>CSV Format</h4>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+                        Spreadsheet compatible
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                    Consent data in tabular format, compatible with Excel, Google Sheets, etc.
+                  </p>
+                  <button
+                    onClick={handleExportCsv}
+                    disabled={exporting === 'csv'}
+                    className="btn btn-secondary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    {exporting === 'csv' ? (
+                      <RefreshCw size={18} className="spin" />
+                    ) : (
+                      <Download size={18} />
+                    )}
+                    Download CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Data Export Info */}
+            <div className="card" style={{ padding: '24px' }}>
+              <h4 style={{ marginBottom: '16px' }}>What's included in your export?</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                <div>
+                  <h5 style={{ color: 'var(--color-primary)', marginBottom: '8px' }}>Profile Data</h5>
+                  <ul style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', paddingLeft: '16px', margin: 0 }}>
+                    <li>Name and email</li>
+                    <li>Account creation date</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 style={{ color: 'var(--color-primary)', marginBottom: '8px' }}>Consent Records</h5>
+                  <ul style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', paddingLeft: '16px', margin: 0 }}>
+                    <li>All consent decisions</li>
+                    <li>Purpose details</li>
+                    <li>Fiduciary information</li>
+                    <li>Receipt signatures</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 style={{ color: 'var(--color-primary)', marginBottom: '8px' }}>Audit Trail</h5>
+                  <ul style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', paddingLeft: '16px', margin: 0 }}>
+                    <li>All actions taken</li>
+                    <li>Timestamps</li>
+                    <li>IP addresses</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </main>
