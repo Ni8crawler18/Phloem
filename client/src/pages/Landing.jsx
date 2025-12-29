@@ -39,7 +39,7 @@ export default function Landing() {
 
   const techStack = [
     { name: 'FastAPI', desc: 'Backend' },
-    { name: 'SQLite', desc: 'Database' },
+    { name: 'Postgres', desc: 'Database' },
     { name: 'JWT', desc: 'Auth Tokens' },
     { name: 'SHA-256', desc: 'Signatures' },
     { name: 'REST', desc: 'API Protocol' },
