@@ -7,7 +7,6 @@ export default function Landing() {
     { value: 'JWT', label: 'Auth Protocol' },
     { value: 'REST', label: 'API Standard' },
     { value: 'Webhooks', label: 'Real-time Events' },
-    { value: 'Rate Limited', label: 'API Protection' },
     { value: 'Immutable', label: 'Audit Logs' },
   ];
 
