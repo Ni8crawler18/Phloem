@@ -9,6 +9,8 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -40,8 +42,12 @@ from app.models.webhook import WebhookEvent
 
 router = APIRouter(prefix="/api/consents", tags=["Consents"])
 
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post("/grant", response_model=ConsentReceiptResponse)
+@limiter.limit("30/minute")
 def grant_consent(
     data: ConsentGrantRequest,
     request: Request,
@@ -137,6 +143,7 @@ def grant_consent(
 
 
 @router.post("/revoke", response_model=ConsentResponse)
+@limiter.limit("30/minute")
 def revoke_consent(
     data: ConsentRevokeRequest,
     request: Request,
@@ -188,7 +195,9 @@ def revoke_consent(
 
 
 @router.get("", response_model=List[ConsentDetailResponse])
+@limiter.limit("60/minute")
 def list_my_consents(
+    request: Request,
     status: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -221,7 +230,9 @@ def list_my_consents(
 
 
 @router.get("/{uuid}/receipt", response_model=ConsentReceiptResponse)
+@limiter.limit("60/minute")
 def get_consent_receipt(
+    request: Request,
     uuid: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -265,7 +276,9 @@ def get_consent_receipt(
 
 
 @router.get("/{uuid}/receipt/pdf")
+@limiter.limit("20/minute")
 def get_consent_receipt_pdf(
+    request: Request,
     uuid: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -425,7 +438,9 @@ def get_consent_receipt_pdf(
 
 
 @router.get("/expiring/list", response_model=List[ConsentDetailResponse])
+@limiter.limit("60/minute")
 def list_expiring_consents(
+    request: Request,
     days: int = EXPIRING_SOON_DAYS,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -449,6 +464,7 @@ def list_expiring_consents(
 
 
 @router.post("/renew", response_model=ConsentReceiptResponse)
+@limiter.limit("30/minute")
 def renew_consent(
     data: ConsentRenewRequest,
     request: Request,
