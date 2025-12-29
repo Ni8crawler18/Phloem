@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { fiduciaryDashboard } from '../api';
+import { fiduciaryDashboard, webhooks } from '../api';
 import { formatDateShort, parseJSON } from '../utils/formatters';
 import {
   Building2, Target, Users, CheckCircle, XCircle, Key, Plus, Trash2,
-  LogOut, Copy, RefreshCw, Clock, ChevronDown, ChevronUp
+  LogOut, Copy, RefreshCw, Clock, ChevronDown, ChevronUp, Bell, Zap,
+  ExternalLink, ToggleLeft, ToggleRight, Play, Eye
 } from 'lucide-react';
 
 export default function FiduciaryDashboard() {
@@ -32,20 +33,37 @@ export default function FiduciaryDashboard() {
   });
   const [formError, setFormError] = useState('');
 
+  // Webhook state
+  const [webhooksList, setWebhooksList] = useState([]);
+  const [showWebhookForm, setShowWebhookForm] = useState(false);
+  const [webhookForm, setWebhookForm] = useState({
+    name: '',
+    url: '',
+    events: ['all'],
+  });
+  const [webhookFormError, setWebhookFormError] = useState('');
+  const [newWebhookSecret, setNewWebhookSecret] = useState(null);
+  const [showSecretModal, setShowSecretModal] = useState(false);
+  const [webhookDeliveries, setWebhookDeliveries] = useState({});
+  const [testingWebhook, setTestingWebhook] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      const [statsRes, purposesRes, consentsRes] = await Promise.all([
+      const [statsRes, purposesRes, consentsRes, webhooksRes] = await Promise.all([
         fiduciaryDashboard.stats(),
         fiduciaryDashboard.purposes(),
         fiduciaryDashboard.consents({ limit: 50 }),
+        webhooks.list(),
       ]);
       setStats(statsRes.data);
       setPurposes(purposesRes.data);
       setConsents(consentsRes.data);
+      setWebhooksList(webhooksRes.data);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -129,6 +147,79 @@ export default function FiduciaryDashboard() {
       loadData();
     } catch (error) {
       alert('Failed to delete purpose');
+    }
+  };
+
+  // Webhook handlers
+  const handleCreateWebhook = async (e) => {
+    e.preventDefault();
+    setWebhookFormError('');
+
+    try {
+      const res = await webhooks.create({
+        name: webhookForm.name,
+        url: webhookForm.url,
+        events: webhookForm.events,
+      });
+      setNewWebhookSecret(res.data.secret);
+      setShowSecretModal(true);
+      setShowWebhookForm(false);
+      setWebhookForm({ name: '', url: '', events: ['all'] });
+      loadData();
+    } catch (error) {
+      setWebhookFormError(error.response?.data?.detail || 'Failed to create webhook');
+    }
+  };
+
+  const deleteWebhook = async (uuid) => {
+    if (!confirm('Are you sure you want to delete this webhook?')) return;
+    try {
+      await webhooks.delete(uuid);
+      loadData();
+    } catch (error) {
+      alert('Failed to delete webhook');
+    }
+  };
+
+  const toggleWebhook = async (webhook) => {
+    try {
+      await webhooks.update(webhook.uuid, { is_active: !webhook.is_active });
+      loadData();
+    } catch (error) {
+      alert('Failed to update webhook');
+    }
+  };
+
+  const testWebhookEndpoint = async (uuid) => {
+    setTestingWebhook(uuid);
+    setTestResult(null);
+    try {
+      const res = await webhooks.test(uuid);
+      setTestResult({ uuid, ...res.data });
+    } catch (error) {
+      setTestResult({ uuid, success: false, error_message: error.response?.data?.detail || 'Test failed' });
+    } finally {
+      setTestingWebhook(null);
+    }
+  };
+
+  const loadWebhookDeliveries = async (uuid) => {
+    try {
+      const res = await webhooks.deliveries(uuid, 20);
+      setWebhookDeliveries(prev => ({ ...prev, [uuid]: res.data }));
+    } catch (error) {
+      console.error('Failed to load deliveries:', error);
+    }
+  };
+
+  const closeSecretModal = () => {
+    setShowSecretModal(false);
+    setTimeout(() => setNewWebhookSecret(null), 100);
+  };
+
+  const copySecret = () => {
+    if (newWebhookSecret) {
+      navigator.clipboard.writeText(newWebhookSecret);
     }
   };
 
@@ -219,6 +310,7 @@ export default function FiduciaryDashboard() {
             { id: 'overview', icon: Building2, label: 'Overview' },
             { id: 'purposes', icon: Target, label: 'Purposes' },
             { id: 'consents', icon: Users, label: 'User Consents' },
+            { id: 'webhooks', icon: Bell, label: 'Webhooks' },
             { id: 'api', icon: Key, label: 'API Key' },
           ].map((item) => (
             <button
@@ -665,6 +757,466 @@ export default function FiduciaryDashboard() {
                   No consents received yet
                 </div>
               )}
+            </div>
+          </>
+        )}
+
+        {/* Webhooks Tab */}
+        {activeTab === 'webhooks' && (
+          <>
+            <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="code-label" style={{ marginBottom: '8px', display: 'block' }}>
+                  // webhooks
+                </span>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: '700' }}>Webhooks</h1>
+                <p style={{ color: 'var(--color-text-secondary)', marginTop: '8px' }}>
+                  Receive real-time notifications when consent events occur.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowWebhookForm(true)}
+                className="btn btn-primary"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                disabled={webhooksList.length >= 10}
+              >
+                <Plus size={18} />
+                Add Webhook
+              </button>
+            </div>
+
+            {/* Webhook Secret Modal */}
+            {showSecretModal && newWebhookSecret && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}>
+                <div className="card" style={{ width: '500px', padding: '32px' }}>
+                  <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Bell size={20} />
+                    Webhook Created
+                  </h2>
+                  <div style={{
+                    padding: '12px',
+                    background: 'var(--color-warning-bg)',
+                    border: '1px solid var(--color-warning)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '20px',
+                    fontSize: '0.875rem',
+                    color: '#92400e',
+                  }}>
+                    <strong>Important:</strong> Save this signing secret now. It will only be shown once.
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '16px',
+                    background: 'var(--color-surface)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                    marginBottom: '20px',
+                  }}>
+                    <code style={{
+                      flex: 1,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.8125rem',
+                      wordBreak: 'break-all',
+                    }}>
+                      {newWebhookSecret}
+                    </code>
+                    <button
+                      onClick={copySecret}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--color-text-secondary)',
+                        padding: '8px',
+                      }}
+                      title="Copy"
+                    >
+                      <Copy size={18} />
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: '20px' }}>
+                    Use this secret to verify webhook signatures. Include it in your X-Eigensparse-Signature header validation.
+                  </p>
+                  <button
+                    onClick={closeSecretModal}
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                  >
+                    I've Saved My Secret
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Webhook Form Modal */}
+            {showWebhookForm && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}>
+                <div className="card" style={{ width: '500px', padding: '32px' }}>
+                  <h2 style={{ marginBottom: '24px' }}>Add Webhook Endpoint</h2>
+
+                  {webhookFormError && (
+                    <div style={{
+                      padding: '12px',
+                      background: 'var(--color-error-bg)',
+                      border: '1px solid var(--color-error)',
+                      borderRadius: 'var(--radius-md)',
+                      marginBottom: '20px',
+                      color: 'var(--color-error)',
+                      fontSize: '0.875rem',
+                    }}>
+                      {webhookFormError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleCreateWebhook}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="label">
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>name</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={webhookForm.name}
+                        onChange={(e) => setWebhookForm({ ...webhookForm, name: e.target.value })}
+                        placeholder="e.g., Production Server"
+                        required
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="label">
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>endpoint_url</span>
+                      </label>
+                      <input
+                        type="url"
+                        className="input"
+                        value={webhookForm.url}
+                        onChange={(e) => setWebhookForm({ ...webhookForm, url: e.target.value })}
+                        placeholder="https://your-server.com/webhooks/eigensparse"
+                        required
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '24px' }}>
+                      <label className="label">
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>events</span>
+                      </label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {[
+                          { value: 'all', label: 'All Events' },
+                          { value: 'consent.granted', label: 'Consent Granted' },
+                          { value: 'consent.revoked', label: 'Consent Revoked' },
+                          { value: 'consent.expired', label: 'Consent Expired' },
+                        ].map((event) => (
+                          <label key={event.value} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={webhookForm.events.includes(event.value)}
+                              onChange={(e) => {
+                                if (event.value === 'all') {
+                                  setWebhookForm({ ...webhookForm, events: e.target.checked ? ['all'] : [] });
+                                } else {
+                                  const newEvents = e.target.checked
+                                    ? [...webhookForm.events.filter(ev => ev !== 'all'), event.value]
+                                    : webhookForm.events.filter(ev => ev !== event.value);
+                                  setWebhookForm({ ...webhookForm, events: newEvents });
+                                }
+                              }}
+                            />
+                            <span style={{ fontSize: '0.9375rem' }}>{event.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setShowWebhookForm(false);
+                          setWebhookFormError('');
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn btn-primary">
+                        Create Webhook
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Webhooks List */}
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {webhooksList.map((webhook) => (
+                <div key={webhook.uuid} className="card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <h3 style={{ fontSize: '1.125rem' }}>{webhook.name}</h3>
+                        <span style={{
+                          padding: '4px 8px',
+                          background: webhook.is_active ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontFamily: 'var(--font-mono)',
+                          color: webhook.is_active ? 'var(--color-success)' : 'var(--color-error)',
+                        }}>
+                          {webhook.is_active ? 'active' : 'inactive'}
+                        </span>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: 'var(--color-text-secondary)',
+                        marginBottom: '12px',
+                        fontSize: '0.875rem',
+                      }}>
+                        <ExternalLink size={14} />
+                        <code style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
+                          {webhook.url}
+                        </code>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {webhook.events.map((event) => (
+                          <span key={event} style={{
+                            padding: '4px 8px',
+                            background: 'rgba(79, 125, 243, 0.1)',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.75rem',
+                            fontFamily: 'var(--font-mono)',
+                            color: 'var(--color-primary)',
+                          }}>
+                            {event}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => testWebhookEndpoint(webhook.uuid)}
+                        disabled={testingWebhook === webhook.uuid}
+                        style={{
+                          background: 'none',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          cursor: 'pointer',
+                          color: 'var(--color-text-secondary)',
+                          padding: '8px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '0.8125rem',
+                        }}
+                        title="Test webhook"
+                      >
+                        <Play size={14} />
+                        {testingWebhook === webhook.uuid ? 'Testing...' : 'Test'}
+                      </button>
+                      <button
+                        onClick={() => toggleWebhook(webhook)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: webhook.is_active ? 'var(--color-success)' : 'var(--color-text-muted)',
+                          padding: '8px',
+                        }}
+                        title={webhook.is_active ? 'Disable webhook' : 'Enable webhook'}
+                      >
+                        {webhook.is_active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                      </button>
+                      <button
+                        onClick={() => deleteWebhook(webhook.uuid)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: 'var(--color-text-muted)',
+                          padding: '8px',
+                        }}
+                        title="Delete webhook"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Test Result */}
+                  {testResult && testResult.uuid === webhook.uuid && (
+                    <div style={{
+                      marginTop: '16px',
+                      padding: '12px',
+                      background: testResult.success ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
+                      border: `1px solid ${testResult.success ? 'var(--color-success)' : 'var(--color-error)'}`,
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.875rem',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        {testResult.success ? <CheckCircle size={16} color="var(--color-success)" /> : <XCircle size={16} color="var(--color-error)" />}
+                        <strong>{testResult.success ? 'Test Successful' : 'Test Failed'}</strong>
+                        {testResult.response_code && (
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                            HTTP {testResult.response_code}
+                          </span>
+                        )}
+                      </div>
+                      {testResult.error_message && (
+                        <p style={{ color: 'var(--color-error)', margin: 0 }}>{testResult.error_message}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Delivery Logs Toggle */}
+                  <div style={{ marginTop: '16px', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+                    <button
+                      onClick={() => {
+                        if (!webhookDeliveries[webhook.uuid]) {
+                          loadWebhookDeliveries(webhook.uuid);
+                        } else {
+                          setWebhookDeliveries(prev => {
+                            const newState = { ...prev };
+                            delete newState[webhook.uuid];
+                            return newState;
+                          });
+                        }
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--color-primary)',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      <Eye size={14} />
+                      {webhookDeliveries[webhook.uuid] ? 'Hide' : 'View'} Recent Deliveries
+                      {webhookDeliveries[webhook.uuid] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+
+                    {/* Delivery Logs */}
+                    {webhookDeliveries[webhook.uuid] && (
+                      <div style={{ marginTop: '12px' }}>
+                        {webhookDeliveries[webhook.uuid].length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {webhookDeliveries[webhook.uuid].map((delivery) => (
+                              <div key={delivery.uuid} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '10px 12px',
+                                background: 'var(--color-surface)',
+                                borderRadius: 'var(--radius-md)',
+                                fontSize: '0.8125rem',
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: delivery.status === 'success' ? 'var(--color-success)' : delivery.status === 'failed' ? 'var(--color-error)' : 'var(--color-warning)',
+                                  }} />
+                                  <span style={{ fontFamily: 'var(--font-mono)' }}>{delivery.event_type}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-text-muted)' }}>
+                                  {delivery.response_code && (
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                                      HTTP {delivery.response_code}
+                                    </span>
+                                  )}
+                                  <span>{formatDateShort(delivery.created_at)}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                            No deliveries yet
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {webhooksList.length === 0 && (
+                <div className="card" style={{
+                  textAlign: 'center',
+                  padding: '48px',
+                  color: 'var(--color-text-muted)',
+                }}>
+                  <Bell size={40} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  <p style={{ marginBottom: '8px' }}>No webhooks configured yet</p>
+                  <p style={{ fontSize: '0.875rem' }}>
+                    Add a webhook to receive real-time consent notifications
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Webhook Documentation */}
+            <div className="card" style={{ padding: '24px', marginTop: '24px' }}>
+              <h3 style={{ marginBottom: '16px' }}>Webhook Payload Format</h3>
+              <div style={{
+                background: '#1E293B',
+                borderRadius: 'var(--radius-md)',
+                padding: '20px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8125rem',
+                color: '#E2E8F0',
+                overflow: 'auto',
+              }}>
+                <pre style={{ margin: 0 }}>{`{
+  "event": "consent.granted",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "data": {
+    "consent_uuid": "abc123...",
+    "user_email": "user@example.com",
+    "purpose_id": 1,
+    "purpose_name": "Marketing",
+    "granted_at": "2024-01-15T10:30:00.000Z"
+  }
+}
+
+// Headers sent with each request:
+// X-Eigensparse-Signature: <HMAC-SHA256 signature>
+// X-Eigensparse-Event: consent.granted
+// X-Eigensparse-Timestamp: 2024-01-15T10:30:00.000Z
+// X-Eigensparse-Delivery-ID: <unique delivery id>`}</pre>
+              </div>
             </div>
           </>
         )}

@@ -27,7 +27,9 @@ from app.schemas import (
 )
 from app.services.consent import generate_consent_receipt
 from app.services.audit import create_audit_log
+from app.services.webhook import trigger_consent_webhooks
 from app.dependencies.auth import get_current_user
+from app.models.webhook import WebhookEvent
 
 router = APIRouter(prefix="/api/consents", tags=["Consents"])
 
@@ -94,6 +96,21 @@ def grant_consent(
         user_agent=request.headers.get("user-agent")
     )
 
+    # Trigger webhooks
+    trigger_consent_webhooks(
+        db=db,
+        fiduciary_id=fiduciary.id,
+        event_type=WebhookEvent.CONSENT_GRANTED.value,
+        consent_data={
+            "consent_uuid": consent.uuid,
+            "user_email": current_user.email,
+            "purpose_id": purpose.id,
+            "purpose_name": purpose.name,
+            "granted_at": consent.granted_at.isoformat(),
+            "expires_at": consent.expires_at.isoformat() if consent.expires_at else None
+        }
+    )
+
     return ConsentReceiptResponse(
         receipt_id=receipt.receipt_id,
         consent_uuid=consent.uuid,
@@ -142,6 +159,22 @@ def revoke_consent(
         details={"reason": data.reason},
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent")
+    )
+
+    # Trigger webhooks
+    purpose = db.query(Purpose).filter(Purpose.id == consent.purpose_id).first()
+    trigger_consent_webhooks(
+        db=db,
+        fiduciary_id=consent.fiduciary_id,
+        event_type=WebhookEvent.CONSENT_REVOKED.value,
+        consent_data={
+            "consent_uuid": consent.uuid,
+            "user_email": current_user.email,
+            "purpose_id": consent.purpose_id,
+            "purpose_name": purpose.name if purpose else None,
+            "revoked_at": consent.revoked_at.isoformat(),
+            "reason": data.reason
+        }
     )
 
     return consent

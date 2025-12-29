@@ -21,6 +21,16 @@ from app.schemas.consent import (
 )
 from app.schemas.audit import AuditLogResponse, AuditLogFilter, DashboardStats
 from app.schemas.sdk import SDKConsentRequest, SDKConsentStatusRequest, SDKConsentStatusResponse
+from app.schemas.webhook import (
+    WebhookCreate,
+    WebhookUpdate,
+    WebhookResponse,
+    WebhookWithSecret,
+    WebhookDeliveryResponse,
+    WebhookTestRequest,
+    WebhookTestResponse,
+    WebhookPayload,
+)
 
 __all__ = [
     # User
@@ -37,4 +47,7 @@ __all__ = [
     "AuditLogResponse", "AuditLogFilter", "DashboardStats",
     # SDK
     "SDKConsentRequest", "SDKConsentStatusRequest", "SDKConsentStatusResponse",
+    # Webhook
+    "WebhookCreate", "WebhookUpdate", "WebhookResponse", "WebhookWithSecret",
+    "WebhookDeliveryResponse", "WebhookTestRequest", "WebhookTestResponse", "WebhookPayload",
 ]

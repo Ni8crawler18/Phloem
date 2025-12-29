@@ -13,7 +13,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, fiduciary, purposes, consents, audit, sdk, dashboard
+from app.routers import auth, fiduciary, purposes, consents, audit, sdk, dashboard, webhooks
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -52,6 +52,7 @@ app.include_router(consents.router)
 app.include_router(audit.router)
 app.include_router(sdk.router)
 app.include_router(dashboard.router)
+app.include_router(webhooks.router)
 
 
 @app.on_event("startup")
