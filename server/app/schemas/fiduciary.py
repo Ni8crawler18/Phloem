@@ -65,6 +65,8 @@ class FiduciaryDashboardStats(BaseModel):
     active_purposes: int
     total_consents: int
     active_consents: int
+    expiring_consents: int
+    expired_consents: int
     revoked_consents: int
     unique_users: int
     recent_consents: List[dict]

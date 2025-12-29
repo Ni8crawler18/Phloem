@@ -15,6 +15,7 @@ from app.schemas.purpose import PurposeCreate, PurposeResponse
 from app.schemas.consent import (
     ConsentGrantRequest,
     ConsentRevokeRequest,
+    ConsentRenewRequest,
     ConsentResponse,
     ConsentDetailResponse,
     ConsentReceiptResponse,
@@ -41,8 +42,8 @@ __all__ = [
     # Purpose
     "PurposeCreate", "PurposeResponse",
     # Consent
-    "ConsentGrantRequest", "ConsentRevokeRequest", "ConsentResponse",
-    "ConsentDetailResponse", "ConsentReceiptResponse",
+    "ConsentGrantRequest", "ConsentRevokeRequest", "ConsentRenewRequest",
+    "ConsentResponse", "ConsentDetailResponse", "ConsentReceiptResponse",
     # Audit
     "AuditLogResponse", "AuditLogFilter", "DashboardStats",
     # SDK
