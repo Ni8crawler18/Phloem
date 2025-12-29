@@ -113,3 +113,5 @@ playwright-report/
 *.seed
 CLAUDE.md
 workflow.md
+core/
+migration.txt
