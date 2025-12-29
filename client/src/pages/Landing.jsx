@@ -6,6 +6,8 @@ export default function Landing() {
     { value: 'SHA-256', label: 'Receipt Signatures' },
     { value: 'JWT', label: 'Auth Protocol' },
     { value: 'REST', label: 'API Standard' },
+    { value: 'Webhooks', label: 'Real-time Events' },
+    { value: 'Rate Limited', label: 'API Protection' },
     { value: 'Immutable', label: 'Audit Logs' },
   ];
 
@@ -28,12 +30,32 @@ export default function Landing() {
       inputs: ['user_id', 'purpose_id'],
       output: 'ConsentStatus',
     },
+    {
+      title: 'data.export()',
+      description: 'Export all user data in JSON or CSV format. GDPR Article 20 compliant.',
+      inputs: ['user_id', 'format'],
+      output: 'DataPackage',
+    },
+    {
+      title: 'webhook.notify()',
+      description: 'Real-time notifications for consent events. HMAC-signed payloads.',
+      inputs: ['event', 'endpoint', 'secret'],
+      output: 'DeliveryStatus',
+    },
+    {
+      title: 'account.delete()',
+      description: 'Complete account erasure with cascade deletion. GDPR Article 17 compliant.',
+      inputs: ['user_id', 'confirmation'],
+      output: 'DeletionReceipt',
+    },
   ];
 
   const complianceItems = [
     { law: 'DPDP Section 6', desc: 'Purpose limitation and lawful processing' },
     { law: 'DPDP Section 6(6)', desc: 'Right to withdraw consent' },
     { law: 'GDPR Article 7', desc: 'Conditions for consent' },
+    { law: 'GDPR Article 17', desc: 'Right to erasure (account deletion)' },
+    { law: 'GDPR Article 20', desc: 'Right to data portability (export)' },
     { law: 'GDPR Article 30', desc: 'Records of processing activities' },
   ];
 
@@ -585,7 +607,7 @@ export default function Landing() {
               fontSize: '0.8125rem',
               color: 'var(--color-text-muted)',
             }}>
-              2024 Eigensparse. Built with FastAPI + React.
+              2025 Eigensparse. Built with FastAPI + React.
             </span>
             <div style={{ display: 'flex', gap: '24px' }}>
               <span style={{

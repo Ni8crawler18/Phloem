@@ -14,9 +14,11 @@ export default function Api() {
     {
       category: 'Authentication',
       items: [
-        { method: 'POST', path: '/api/auth/register', desc: 'Register a new user or fiduciary' },
+        { method: 'POST', path: '/api/auth/register', desc: 'Register a new user' },
         { method: 'POST', path: '/api/auth/login', desc: 'Login and get JWT token' },
         { method: 'GET', path: '/api/auth/me', desc: 'Get current user info' },
+        { method: 'POST', path: '/api/auth/fiduciary/register', desc: 'Register a new fiduciary' },
+        { method: 'POST', path: '/api/auth/fiduciary/login', desc: 'Fiduciary login' },
       ]
     },
     {
@@ -25,8 +27,40 @@ export default function Api() {
         { method: 'GET', path: '/api/consents', desc: 'List all consents for current user' },
         { method: 'POST', path: '/api/consents/grant', desc: 'Grant consent for a purpose' },
         { method: 'POST', path: '/api/consents/revoke', desc: 'Revoke an existing consent' },
+        { method: 'POST', path: '/api/consents/renew', desc: 'Renew an expiring consent' },
         { method: 'GET', path: '/api/consents/{uuid}/receipt', desc: 'Get consent receipt (JSON)' },
         { method: 'GET', path: '/api/consents/{uuid}/receipt/pdf', desc: 'Download consent receipt (PDF)' },
+      ]
+    },
+    {
+      category: 'Data Export',
+      items: [
+        { method: 'GET', path: '/api/consents/export/json', desc: 'Export all user data as JSON' },
+        { method: 'GET', path: '/api/consents/export/csv', desc: 'Export all user data as CSV' },
+      ]
+    },
+    {
+      category: 'Settings',
+      items: [
+        { method: 'GET', path: '/api/settings/user/profile', desc: 'Get user profile' },
+        { method: 'PUT', path: '/api/settings/user/profile', desc: 'Update user profile' },
+        { method: 'POST', path: '/api/settings/user/change-password', desc: 'Change user password' },
+        { method: 'POST', path: '/api/settings/user/delete-account', desc: 'Delete user account' },
+        { method: 'GET', path: '/api/settings/fiduciary/profile', desc: 'Get fiduciary profile' },
+        { method: 'PUT', path: '/api/settings/fiduciary/profile', desc: 'Update fiduciary profile' },
+        { method: 'POST', path: '/api/settings/fiduciary/change-password', desc: 'Change fiduciary password' },
+        { method: 'POST', path: '/api/settings/fiduciary/delete-account', desc: 'Delete fiduciary account' },
+      ]
+    },
+    {
+      category: 'Webhooks',
+      items: [
+        { method: 'GET', path: '/api/webhooks', desc: 'List all webhooks' },
+        { method: 'POST', path: '/api/webhooks', desc: 'Create a new webhook' },
+        { method: 'PUT', path: '/api/webhooks/{uuid}', desc: 'Update webhook' },
+        { method: 'DELETE', path: '/api/webhooks/{uuid}', desc: 'Delete webhook' },
+        { method: 'POST', path: '/api/webhooks/{uuid}/test', desc: 'Test webhook endpoint' },
+        { method: 'GET', path: '/api/webhooks/{uuid}/deliveries', desc: 'Get webhook delivery logs' },
       ]
     },
     {
@@ -49,6 +83,13 @@ export default function Api() {
       items: [
         { method: 'GET', path: '/api/dashboard/stats', desc: 'Get fiduciary statistics' },
         { method: 'GET', path: '/api/dashboard/consents', desc: 'Get consents for fiduciary' },
+      ]
+    },
+    {
+      category: 'Audit Logs',
+      items: [
+        { method: 'GET', path: '/api/audit-logs', desc: 'Get user audit logs' },
+        { method: 'GET', path: '/api/audit-logs/fiduciary', desc: 'Get fiduciary audit logs' },
       ]
     },
   ];
@@ -189,6 +230,52 @@ export default function Api() {
         </div>
       </section>
 
+      {/* Rate Limiting */}
+      <section style={{ padding: '32px 0', borderBottom: '1px solid var(--color-border)' }}>
+        <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '16px' }}>Rate Limiting</h2>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px', fontSize: '0.9375rem' }}>
+            All API endpoints are rate limited to prevent abuse. Limits vary by endpoint sensitivity.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+            {[
+              { endpoint: 'Auth endpoints', limit: '5/min' },
+              { endpoint: 'Consent operations', limit: '10/min' },
+              { endpoint: 'Data export', limit: '5/min' },
+              { endpoint: 'Profile updates', limit: '10/min' },
+              { endpoint: 'Password change', limit: '5/min' },
+              { endpoint: 'Account deletion', limit: '3/min' },
+              { endpoint: 'Webhook operations', limit: '20/min' },
+              { endpoint: 'SDK verification', limit: '100/min' },
+            ].map((item, i) => (
+              <div key={i} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+              }}>
+                <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                  {item.endpoint}
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.75rem',
+                  padding: '2px 8px',
+                  background: 'rgba(79, 125, 243, 0.1)',
+                  color: 'var(--color-primary)',
+                  borderRadius: 'var(--radius-sm)',
+                }}>
+                  {item.limit}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Endpoints */}
       <section style={{ padding: '48px 0' }}>
         <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
@@ -269,6 +356,7 @@ export default function Api() {
               { code: '403', desc: 'Forbidden', color: '#dc2626' },
               { code: '404', desc: 'Not Found', color: '#b45309' },
               { code: '422', desc: 'Validation Error', color: '#b45309' },
+              { code: '429', desc: 'Rate Limited', color: '#b45309' },
               { code: '500', desc: 'Server Error', color: '#dc2626' },
             ].map((status, i) => (
               <div key={i} style={{
