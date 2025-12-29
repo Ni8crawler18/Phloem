@@ -93,6 +93,6 @@ def root():
     return {
         "name": f"{settings.APP_NAME} - Consent Management System",
         "version": settings.APP_VERSION,
-        "docs": "/api/docs",
+        "docs": "/docs",
         "compliance": ["DPDP Act 2023", "GDPR"]
     }
