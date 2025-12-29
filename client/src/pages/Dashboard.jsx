@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { consents, fiduciaries, purposes, dashboard, auditLogs } from '../api';
+import { consents, fiduciaries, purposes, dashboard, auditLogs, settings } from '../api';
 import { formatDate, parseJSON } from '../utils/formatters';
 import {
   Shield, Check, X, FileText, Clock, Building2,
   RefreshCw, Download, AlertCircle, ChevronDown, ChevronUp,
-  Database, History, LogOut, Terminal, AlertTriangle
+  Database, History, LogOut, Terminal, AlertTriangle, Settings,
+  User, Lock, Trash2, Save
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -22,6 +23,15 @@ export default function Dashboard() {
   const [expandedConsent, setExpandedConsent] = useState(null);
   const [grantingPurpose, setGrantingPurpose] = useState(null);
   const [renewingConsent, setRenewingConsent] = useState(null);
+
+  // Settings state
+  const [profileForm, setProfileForm] = useState({ name: '', phone: '' });
+  const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
+  const [deleteForm, setDeleteForm] = useState({ password: '', confirmation: '' });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -46,6 +56,69 @@ export default function Dashboard() {
       setError('Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Initialize profile form when user data is available
+  useEffect(() => {
+    if (user) {
+      setProfileForm({ name: user.name || '', phone: user.phone || '' });
+    }
+  }, [user]);
+
+  // Settings handlers
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsError('');
+    setSettingsSuccess('');
+    try {
+      await settings.user.updateProfile(profileForm);
+      setSettingsSuccess('Profile updated successfully');
+    } catch (err) {
+      setSettingsError(err.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsError('');
+    setSettingsSuccess('');
+
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setSettingsError('New passwords do not match');
+      setSettingsLoading(false);
+      return;
+    }
+
+    try {
+      await settings.user.changePassword({
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password,
+      });
+      setSettingsSuccess('Password changed successfully');
+      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+    } catch (err) {
+      setSettingsError(err.response?.data?.detail || 'Failed to change password');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsError('');
+
+    try {
+      await settings.user.deleteAccount(deleteForm);
+      logout();
+    } catch (err) {
+      setSettingsError(err.response?.data?.detail || 'Failed to delete account');
+      setSettingsLoading(false);
     }
   };
 
@@ -143,11 +216,50 @@ export default function Dashboard() {
     );
   }
 
-  const tabs = [
+  const [exporting, setExporting] = useState(null);
+
+  const handleExportJson = async () => {
+    setExporting('json');
+    try {
+      const blob = await consents.exportJson();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eigensparse-export-${user.uuid || 'data'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to export data');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setExporting('csv');
+    try {
+      const blob = await consents.exportCsv();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eigensparse-consents-${user.uuid || 'data'}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to export data');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const mainTabs = [
     { id: 'consents', label: 'My Consents', icon: Shield },
     { id: 'available', label: 'Available Purposes', icon: Database },
     { id: 'audit', label: 'Audit Log', icon: History },
+    { id: 'export', label: 'Export Data', icon: Download },
   ];
+
+  const settingsTab = { id: 'settings', label: 'Settings', icon: Settings };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--color-surface)' }}>
@@ -187,37 +299,62 @@ export default function Dashboard() {
         </div>
 
         {/* Navigation */}
-        <nav style={{ flex: 1, padding: '16px' }}>
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 16px',
-                  background: isActive ? 'var(--color-primary)' : 'transparent',
-                  color: isActive ? 'white' : 'var(--color-text-secondary)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '0.9375rem',
-                  fontWeight: '500',
-                  marginBottom: '4px',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <Icon size={18} />
-                {tab.label}
-              </button>
-            );
-          })}
+        <nav style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1 }}>
+            {mainTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px 16px',
+                    background: isActive ? 'var(--color-primary)' : 'transparent',
+                    color: isActive ? 'white' : 'var(--color-text-secondary)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.9375rem',
+                    fontWeight: '500',
+                    marginBottom: '4px',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Icon size={18} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+          {/* Settings at bottom */}
+          <button
+            onClick={() => setActiveTab('settings')}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px 16px',
+              background: activeTab === 'settings' ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === 'settings' ? 'white' : 'var(--color-text-secondary)',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.9375rem',
+              fontWeight: '500',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Settings size={18} />
+            Settings
+          </button>
         </nav>
 
         {/* User Info */}
@@ -679,6 +816,425 @@ export default function Dashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Export Data Tab */}
+        {activeTab === 'export' && (
+          <div>
+            <div className="card" style={{ padding: '32px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Download size={20} />
+                Export Your Data
+              </h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+                Download all your consent data in compliance with GDPR Article 20 (Right to Data Portability)
+                and DPDP Act 2023.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {/* JSON Export */}
+                <div style={{
+                  padding: '24px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-surface)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <FileText size={24} color="var(--color-primary)" />
+                    <div>
+                      <h4 style={{ margin: 0 }}>JSON Format</h4>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+                        Complete data export
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                    Includes your profile, all consents, receipts, and audit logs in a structured format.
+                  </p>
+                  <button
+                    onClick={handleExportJson}
+                    disabled={exporting === 'json'}
+                    className="btn btn-primary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    {exporting === 'json' ? (
+                      <RefreshCw size={18} className="spin" />
+                    ) : (
+                      <Download size={18} />
+                    )}
+                    Download JSON
+                  </button>
+                </div>
+
+                {/* CSV Export */}
+                <div style={{
+                  padding: '24px',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-surface)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <Database size={24} color="var(--color-success)" />
+                    <div>
+                      <h4 style={{ margin: 0 }}>CSV Format</h4>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+                        Spreadsheet compatible
+                      </span>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                    Consent data in tabular format, compatible with Excel, Google Sheets, etc.
+                  </p>
+                  <button
+                    onClick={handleExportCsv}
+                    disabled={exporting === 'csv'}
+                    className="btn btn-secondary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  >
+                    {exporting === 'csv' ? (
+                      <RefreshCw size={18} className="spin" />
+                    ) : (
+                      <Download size={18} />
+                    )}
+                    Download CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Data Export Info */}
+            <div className="card" style={{ padding: '24px' }}>
+              <h4 style={{ marginBottom: '16px' }}>What's included in your export?</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                <div>
+                  <h5 style={{ color: 'var(--color-primary)', marginBottom: '8px' }}>Profile Data</h5>
+                  <ul style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', paddingLeft: '16px', margin: 0 }}>
+                    <li>Name and email</li>
+                    <li>Account creation date</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 style={{ color: 'var(--color-primary)', marginBottom: '8px' }}>Consent Records</h5>
+                  <ul style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', paddingLeft: '16px', margin: 0 }}>
+                    <li>All consent decisions</li>
+                    <li>Purpose details</li>
+                    <li>Fiduciary information</li>
+                    <li>Receipt signatures</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 style={{ color: 'var(--color-primary)', marginBottom: '8px' }}>Audit Trail</h5>
+                  <ul style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', paddingLeft: '16px', margin: 0 }}>
+                    <li>All actions taken</li>
+                    <li>Timestamps</li>
+                    <li>IP addresses</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <div>
+            {/* Settings Messages */}
+            {settingsError && (
+              <div style={{
+                padding: '12px 16px',
+                background: 'var(--color-error-bg)',
+                border: '1px solid var(--color-error)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--color-error)',
+                marginBottom: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <AlertCircle size={18} />
+                {settingsError}
+              </div>
+            )}
+            {settingsSuccess && (
+              <div style={{
+                padding: '12px 16px',
+                background: 'var(--color-success-bg)',
+                border: '1px solid var(--color-success)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--color-success)',
+                marginBottom: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <Check size={18} />
+                {settingsSuccess}
+              </div>
+            )}
+
+            {/* Profile Section */}
+            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <User size={20} />
+                Profile Information
+              </h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+                Update your personal information.
+              </p>
+
+              <form onSubmit={handleUpdateProfile}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                      className="input"
+                      style={{ width: '100%' }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                      Phone (optional)
+                    </label>
+                    <input
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      className="input"
+                      style={{ width: '100%' }}
+                      placeholder="+1 234 567 8900"
+                    />
+                  </div>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={user?.email || ''}
+                    className="input"
+                    style={{ width: '100%', background: 'var(--color-surface)' }}
+                    disabled
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                    Email cannot be changed for security reasons.
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={settingsLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {settingsLoading ? <RefreshCw size={16} className="spin" /> : <Save size={16} />}
+                  Save Changes
+                </button>
+              </form>
+            </div>
+
+            {/* Password Section */}
+            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lock size={20} />
+                Change Password
+              </h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+                Update your password to keep your account secure.
+              </p>
+
+              <form onSubmit={handleChangePassword}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordForm.current_password}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                    className="input"
+                    style={{ width: '100%', maxWidth: '400px' }}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px', maxWidth: '800px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.new_password}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                      className="input"
+                      style={{ width: '100%' }}
+                      minLength={8}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirm_password}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+                      className="input"
+                      style={{ width: '100%' }}
+                      minLength={8}
+                      required
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  className="btn btn-secondary"
+                  disabled={settingsLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {settingsLoading ? <RefreshCw size={16} className="spin" /> : <Lock size={16} />}
+                  Update Password
+                </button>
+              </form>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="card" style={{ padding: '24px', border: '1px solid var(--color-error)' }}>
+              <h3 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-error)' }}>
+                <Trash2 size={20} />
+                Danger Zone
+              </h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="btn"
+                style={{
+                  background: 'var(--color-error)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <Trash2 size={16} />
+                Delete Account
+              </button>
+            </div>
+
+            {/* Delete Account Modal */}
+            {showDeleteModal && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}>
+                <div className="card" style={{ width: '450px', padding: '32px' }}>
+                  <h2 style={{ marginBottom: '16px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Trash2 size={24} />
+                    Delete Account
+                  </h2>
+                  <div style={{
+                    padding: '12px',
+                    background: 'var(--color-error-bg)',
+                    border: '1px solid var(--color-error)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '20px',
+                    fontSize: '0.875rem',
+                  }}>
+                    <strong>Warning:</strong> This will permanently delete:
+                    <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+                      <li>Your profile and account</li>
+                      <li>All your consent records</li>
+                      <li>All consent receipts</li>
+                    </ul>
+                  </div>
+
+                  {settingsError && (
+                    <div style={{
+                      padding: '12px',
+                      background: 'var(--color-error-bg)',
+                      borderRadius: 'var(--radius-md)',
+                      marginBottom: '16px',
+                      color: 'var(--color-error)',
+                      fontSize: '0.875rem',
+                    }}>
+                      {settingsError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleDeleteAccount}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                        Enter your password
+                      </label>
+                      <input
+                        type="password"
+                        value={deleteForm.password}
+                        onChange={(e) => setDeleteForm({ ...deleteForm, password: e.target.value })}
+                        className="input"
+                        style={{ width: '100%' }}
+                        required
+                      />
+                    </div>
+                    <div style={{ marginBottom: '24px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>
+                        Type <code style={{ background: 'var(--color-surface)', padding: '2px 6px', borderRadius: '4px' }}>DELETE</code> to confirm
+                      </label>
+                      <input
+                        type="text"
+                        value={deleteForm.confirmation}
+                        onChange={(e) => setDeleteForm({ ...deleteForm, confirmation: e.target.value })}
+                        className="input"
+                        style={{ width: '100%' }}
+                        placeholder="DELETE"
+                        required
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setShowDeleteModal(false);
+                          setDeleteForm({ password: '', confirmation: '' });
+                          setSettingsError('');
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn"
+                        disabled={settingsLoading || deleteForm.confirmation !== 'DELETE'}
+                        style={{
+                          background: deleteForm.confirmation === 'DELETE' ? 'var(--color-error)' : 'var(--color-border)',
+                          color: 'white',
+                        }}
+                      >
+                        {settingsLoading ? <RefreshCw size={16} className="spin" /> : 'Delete My Account'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

@@ -32,6 +32,23 @@ from app.schemas.webhook import (
     WebhookTestResponse,
     WebhookPayload,
 )
+from app.schemas.settings import (
+    PasswordConfirmation,
+    UserProfileUpdate,
+    UserPasswordChange,
+    FiduciaryProfileUpdate,
+    FiduciaryPasswordChange,
+    AccountDeleteRequest,
+    AccountDeleteResponse,
+)
+from app.schemas.auth import (
+    VerifyEmailRequest,
+    ResendVerificationRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MessageResponse,
+    VerificationStatusResponse,
+)
 
 __all__ = [
     # User
@@ -51,4 +68,11 @@ __all__ = [
     # Webhook
     "WebhookCreate", "WebhookUpdate", "WebhookResponse", "WebhookWithSecret",
     "WebhookDeliveryResponse", "WebhookTestRequest", "WebhookTestResponse", "WebhookPayload",
+    # Settings
+    "PasswordConfirmation", "UserProfileUpdate", "UserPasswordChange",
+    "FiduciaryProfileUpdate", "FiduciaryPasswordChange",
+    "AccountDeleteRequest", "AccountDeleteResponse",
+    # Auth
+    "VerifyEmailRequest", "ResendVerificationRequest", "ForgotPasswordRequest",
+    "ResetPasswordRequest", "MessageResponse", "VerificationStatusResponse",
 ]

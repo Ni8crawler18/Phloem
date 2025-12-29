@@ -73,6 +73,27 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
 
+    # Email SMTP Settings
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "Eigensparse"
+    SMTP_USE_TLS: bool = True
+
+    # Frontend URL for email links
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # Token Expiration Settings
+    VERIFICATION_EXPIRE_HOURS: int = 24
+    RESET_EXPIRE_MINUTES: int = 30
+
+    @property
+    def email_enabled(self) -> bool:
+        """Check if email is configured"""
+        return bool(self.SMTP_HOST and self.SMTP_USER and self.SMTP_PASSWORD)
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

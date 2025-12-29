@@ -18,6 +18,20 @@ export const consents = {
     });
     return response.blob();
   },
+  exportJson: async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/consents/export/json`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.blob();
+  },
+  exportCsv: async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/consents/export/csv`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.blob();
+  },
 };
 
 export default consents;

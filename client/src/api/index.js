@@ -9,3 +9,4 @@ export { purposes } from './purposes';
 export { auditLogs } from './audit';
 export { dashboard } from './dashboard';
 export { webhooks } from './webhooks';
+export { settings } from './settings';

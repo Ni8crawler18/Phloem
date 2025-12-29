@@ -26,6 +26,15 @@ class DataFiduciary(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Email verification
+    email_verified = Column(Boolean, default=False)
+    verification_token = Column(String(100), nullable=True)
+    verification_token_expires = Column(DateTime(timezone=True), nullable=True)
+
+    # Password reset
+    reset_token = Column(String(100), nullable=True)
+    reset_token_expires = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     purposes = relationship("Purpose", back_populates="fiduciary")
     consents = relationship("Consent", back_populates="fiduciary")

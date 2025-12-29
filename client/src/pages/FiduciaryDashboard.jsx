@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { fiduciaryDashboard, webhooks } from '../api';
+import { fiduciaryDashboard, webhooks, settings } from '../api';
 import { formatDateShort, parseJSON } from '../utils/formatters';
 import {
   Building2, Target, Users, CheckCircle, XCircle, Key, Plus, Trash2,
   LogOut, Copy, RefreshCw, Clock, ChevronDown, ChevronUp, Bell, Zap,
-  ExternalLink, ToggleLeft, ToggleRight, Play, Eye, AlertTriangle
+  ExternalLink, ToggleLeft, ToggleRight, Play, Eye, AlertTriangle,
+  Settings, User, Lock, Save
 } from 'lucide-react';
 
 export default function FiduciaryDashboard() {
@@ -48,9 +49,37 @@ export default function FiduciaryDashboard() {
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResult, setTestResult] = useState(null);
 
+  // Settings state
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    description: '',
+    privacy_policy_url: ''
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [deleteForm, setDeleteForm] = useState({ password: '', confirmation: '' });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Initialize profile form when user data loads
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || '',
+        description: user.description || '',
+        privacy_policy_url: user.privacy_policy_url || ''
+      });
+    }
+  }, [user]);
 
   const loadData = async () => {
     try {
@@ -223,6 +252,78 @@ export default function FiduciaryDashboard() {
     }
   };
 
+  // Settings handlers
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsError('');
+    setSettingsSuccess('');
+
+    try {
+      await settings.fiduciary.updateProfile({
+        name: profileForm.name || undefined,
+        description: profileForm.description || undefined,
+        privacy_policy_url: profileForm.privacy_policy_url || undefined
+      });
+      await refreshUser();
+      setSettingsSuccess('Profile updated successfully');
+    } catch (error) {
+      setSettingsError(error.response?.data?.detail || 'Failed to update profile');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsError('');
+    setSettingsSuccess('');
+
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setSettingsError('New passwords do not match');
+      setSettingsLoading(false);
+      return;
+    }
+
+    if (passwordForm.new_password.length < 8) {
+      setSettingsError('Password must be at least 8 characters');
+      setSettingsLoading(false);
+      return;
+    }
+
+    try {
+      await settings.fiduciary.changePassword({
+        current_password: passwordForm.current_password,
+        new_password: passwordForm.new_password
+      });
+      setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
+      setSettingsSuccess('Password changed successfully');
+    } catch (error) {
+      setSettingsError(error.response?.data?.detail || 'Failed to change password');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsError('');
+
+    try {
+      await settings.fiduciary.deleteAccount({
+        password: deleteForm.password,
+        confirmation: deleteForm.confirmation
+      });
+      logout();
+      navigate('/');
+    } catch (error) {
+      setSettingsError(error.response?.data?.detail || 'Failed to delete account');
+      setSettingsLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{
@@ -305,39 +406,67 @@ export default function FiduciaryDashboard() {
         </div>
 
         {/* Navigation */}
-        <nav style={{ flex: 1, padding: '16px 12px' }}>
-          {[
-            { id: 'overview', icon: Building2, label: 'Overview' },
-            { id: 'purposes', icon: Target, label: 'Purposes' },
-            { id: 'consents', icon: Users, label: 'User Consents' },
-            { id: 'webhooks', icon: Bell, label: 'Webhooks' },
-            { id: 'api', icon: Key, label: 'API Key' },
-          ].map((item) => (
+        <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1 }}>
+            {[
+              { id: 'overview', icon: Building2, label: 'Overview' },
+              { id: 'purposes', icon: Target, label: 'Purposes' },
+              { id: 'consents', icon: Users, label: 'User Consents' },
+              { id: 'webhooks', icon: Bell, label: 'Webhooks' },
+              { id: 'api', icon: Key, label: 'API Key' },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  marginBottom: '4px',
+                  background: activeTab === item.id ? 'rgba(79, 125, 243, 0.1)' : 'transparent',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.9375rem',
+                  color: activeTab === item.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                  fontWeight: activeTab === item.id ? '500' : '400',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <item.icon size={18} />
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Settings at bottom */}
+          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px', marginTop: '12px' }}>
             <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => setActiveTab('settings')}
               style={{
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 padding: '12px 16px',
-                marginBottom: '4px',
-                background: activeTab === item.id ? 'rgba(79, 125, 243, 0.1)' : 'transparent',
+                background: activeTab === 'settings' ? 'rgba(79, 125, 243, 0.1)' : 'transparent',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
                 cursor: 'pointer',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '0.9375rem',
-                color: activeTab === item.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                fontWeight: activeTab === item.id ? '500' : '400',
+                color: activeTab === 'settings' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                fontWeight: activeTab === 'settings' ? '500' : '400',
                 transition: 'all 0.2s ease',
               }}
             >
-              <item.icon size={18} />
-              {item.label}
+              <Settings size={18} />
+              Settings
             </button>
-          ))}
+          </div>
         </nav>
 
         {/* Logout */}
@@ -1393,6 +1522,332 @@ if (result.has_consent) {
               </div>
             </div>
           </>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <>
+            <div style={{ marginBottom: '32px' }}>
+              <span className="code-label" style={{ marginBottom: '8px', display: 'block' }}>
+                // settings
+              </span>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: '700' }}>Account Settings</h1>
+              <p style={{ color: 'var(--color-text-secondary)', marginTop: '8px' }}>
+                Manage your organization profile, security, and account preferences.
+              </p>
+            </div>
+
+            {/* Success/Error Messages */}
+            {settingsSuccess && (
+              <div style={{
+                padding: '12px 16px',
+                background: 'var(--color-success-bg)',
+                border: '1px solid var(--color-success)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '20px',
+                color: 'var(--color-success)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <CheckCircle size={18} />
+                {settingsSuccess}
+              </div>
+            )}
+
+            {settingsError && (
+              <div style={{
+                padding: '12px 16px',
+                background: 'var(--color-error-bg)',
+                border: '1px solid var(--color-error)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '20px',
+                color: 'var(--color-error)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}>
+                <XCircle size={18} />
+                {settingsError}
+              </div>
+            )}
+
+            {/* Organization Profile */}
+            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Building2 size={18} />
+                Organization Profile
+              </h3>
+              <form onSubmit={handleUpdateProfile}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>name</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                    placeholder="Your organization name"
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>description</span>
+                  </label>
+                  <textarea
+                    className="input"
+                    value={profileForm.description}
+                    onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
+                    placeholder="Brief description of your organization"
+                    rows={3}
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>privacy_policy_url</span>
+                  </label>
+                  <input
+                    type="url"
+                    className="input"
+                    value={profileForm.privacy_policy_url}
+                    onChange={(e) => setProfileForm({ ...profileForm, privacy_policy_url: e.target.value })}
+                    placeholder="https://example.com/privacy"
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="label">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>contact_email</span>
+                    <span style={{ color: 'var(--color-text-muted)', marginLeft: '8px' }}>(cannot be changed)</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="input"
+                    value={user?.contact_email || ''}
+                    disabled
+                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={settingsLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Save size={16} />
+                  {settingsLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </form>
+            </div>
+
+            {/* Change Password */}
+            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Lock size={18} />
+                Change Password
+              </h3>
+              <form onSubmit={handleChangePassword}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>current_password</span>
+                  </label>
+                  <input
+                    type="password"
+                    className="input"
+                    value={passwordForm.current_password}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })}
+                    placeholder="Enter current password"
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                  <div>
+                    <label className="label">
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>new_password</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="input"
+                      value={passwordForm.new_password}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
+                      placeholder="Min 8 characters"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>confirm_password</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="input"
+                      value={passwordForm.confirm_password}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
+                      placeholder="Confirm new password"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-secondary"
+                  disabled={settingsLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Lock size={16} />
+                  {settingsLoading ? 'Changing...' : 'Change Password'}
+                </button>
+              </form>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="card" style={{
+              padding: '24px',
+              border: '1px solid var(--color-error)',
+              background: 'rgba(239, 68, 68, 0.03)',
+            }}>
+              <h3 style={{ marginBottom: '12px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle size={18} />
+                Danger Zone
+              </h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px', fontSize: '0.9375rem' }}>
+                Permanently delete your organization account and all associated data. This will also delete all purposes,
+                webhooks, and revoke all user consents. This action cannot be undone.
+              </p>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="btn"
+                style={{
+                  background: 'var(--color-error)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <Trash2 size={16} />
+                Delete Organization Account
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Delete Account Modal */}
+        {showDeleteModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}>
+            <div className="card" style={{ width: '450px', padding: '32px' }}>
+              <h2 style={{ marginBottom: '16px', color: 'var(--color-error)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle size={20} />
+                Delete Organization Account
+              </h2>
+
+              <div style={{
+                padding: '12px',
+                background: 'var(--color-error-bg)',
+                border: '1px solid var(--color-error)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '20px',
+                fontSize: '0.875rem',
+                color: 'var(--color-error)',
+              }}>
+                <strong>Warning:</strong> This will permanently delete:
+                <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
+                  <li>Your organization profile</li>
+                  <li>All purposes you've created</li>
+                  <li>All webhook configurations</li>
+                  <li>All user consents to your purposes</li>
+                </ul>
+              </div>
+
+              {settingsError && (
+                <div style={{
+                  padding: '12px',
+                  background: 'var(--color-error-bg)',
+                  border: '1px solid var(--color-error)',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '16px',
+                  color: 'var(--color-error)',
+                  fontSize: '0.875rem',
+                }}>
+                  {settingsError}
+                </div>
+              )}
+
+              <form onSubmit={handleDeleteAccount}>
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="label">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>password</span>
+                  </label>
+                  <input
+                    type="password"
+                    className="input"
+                    value={deleteForm.password}
+                    onChange={(e) => setDeleteForm({ ...deleteForm, password: e.target.value })}
+                    placeholder="Enter your password"
+                    required
+                  />
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                  <label className="label">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>confirmation</span>
+                    <span style={{ color: 'var(--color-text-muted)', marginLeft: '8px' }}>Type "DELETE" to confirm</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={deleteForm.confirmation}
+                    onChange={(e) => setDeleteForm({ ...deleteForm, confirmation: e.target.value })}
+                    placeholder="DELETE"
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeleteForm({ password: '', confirmation: '' });
+                      setSettingsError('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn"
+                    disabled={settingsLoading || deleteForm.confirmation !== 'DELETE'}
+                    style={{
+                      background: deleteForm.confirmation === 'DELETE' ? 'var(--color-error)' : 'var(--color-text-muted)',
+                      color: 'white',
+                    }}
+                  >
+                    {settingsLoading ? 'Deleting...' : 'Delete Account'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </main>
     </div>

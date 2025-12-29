@@ -9,14 +9,17 @@ import Dashboard from './pages/Dashboard';
 import FiduciaryDashboard from './pages/FiduciaryDashboard';
 import SdkDemo from './pages/SdkDemo';
 import Api from './pages/Api';
+import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function AppRoutes() {
   const { user, role } = useAuth();
   const location = useLocation();
 
-  // Don't show navbar on dashboard, login, or register pages
+  // Don't show navbar on dashboard, login, register, or auth pages
   const hideNavbar =
-    ['/dashboard', '/login', '/register'].includes(location.pathname) ||
+    ['/dashboard', '/login', '/register', '/verify-email', '/forgot-password', '/reset-password'].includes(location.pathname) ||
     location.pathname.startsWith('/fiduciary');
 
   return (
@@ -52,6 +55,9 @@ function AppRoutes() {
             )
           }
         />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/dashboard"
           element={

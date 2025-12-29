@@ -318,7 +318,7 @@ export default function Login() {
               </div>
             </div>
 
-            <div style={{ marginBottom: '28px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <label className="label">
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
                   password
@@ -341,6 +341,19 @@ export default function Login() {
                   required
                 />
               </div>
+            </div>
+
+            <div style={{ textAlign: 'right', marginBottom: '28px' }}>
+              <Link
+                to="/forgot-password"
+                style={{
+                  fontSize: '0.875rem',
+                  color: 'var(--color-primary)',
+                  textDecoration: 'none',
+                }}
+              >
+                Forgot password?
+              </Link>
             </div>
 
             <button
