@@ -6,7 +6,7 @@ import { formatDateShort, parseJSON } from '../utils/formatters';
 import {
   Building2, Target, Users, CheckCircle, XCircle, Key, Plus, Trash2,
   LogOut, Copy, RefreshCw, Clock, ChevronDown, ChevronUp, Bell, Zap,
-  ExternalLink, ToggleLeft, ToggleRight, Play, Eye
+  ExternalLink, ToggleLeft, ToggleRight, Play, Eye, AlertTriangle
 } from 'lucide-react';
 
 export default function FiduciaryDashboard() {
@@ -379,7 +379,7 @@ export default function FiduciaryDashboard() {
             {/* Stats Grid */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
+              gridTemplateColumns: 'repeat(3, 1fr)',
               gap: '20px',
               marginBottom: '32px',
             }}>
@@ -387,7 +387,9 @@ export default function FiduciaryDashboard() {
                 { label: 'Active Purposes', value: stats?.active_purposes || 0, icon: Target, color: 'var(--color-primary)' },
                 { label: 'Total Consents', value: stats?.total_consents || 0, icon: CheckCircle, color: 'var(--color-success)' },
                 { label: 'Active Consents', value: stats?.active_consents || 0, icon: Users, color: '#8B5CF6' },
-                { label: 'Unique Users', value: stats?.unique_users || 0, icon: Users, color: '#F59E0B' },
+                { label: 'Expiring Soon', value: stats?.expiring_consents || 0, icon: AlertTriangle, color: '#F59E0B' },
+                { label: 'Expired', value: stats?.expired_consents || 0, icon: XCircle, color: 'var(--color-error)' },
+                { label: 'Unique Users', value: stats?.unique_users || 0, icon: Users, color: '#10B981' },
               ].map((stat, i) => (
                 <div key={i} className="card" style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -400,7 +402,7 @@ export default function FiduciaryDashboard() {
                       {String(i + 1).padStart(2, '0')}
                     </span>
                   </div>
-                  <div style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '4px', color: stat.color }}>
                     {stat.value}
                   </div>
                   <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
@@ -731,21 +733,34 @@ export default function FiduciaryDashboard() {
                       </td>
                       <td style={{ padding: '16px', fontSize: '0.9375rem' }}>{c.purpose_name}</td>
                       <td style={{ padding: '16px' }}>
-                        <span style={{
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.75rem',
-                          fontFamily: 'var(--font-mono)',
-                          background: c.status === 'granted' ? 'var(--color-success-bg)' : 'var(--color-error-bg)',
-                          color: c.status === 'granted' ? 'var(--color-success)' : 'var(--color-error)',
-                        }}>
-                          {c.status}
-                        </span>
+                        {(() => {
+                          const isExpiringSoon = c.status === 'granted' && c.expires_at &&
+                            new Date(c.expires_at) <= new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) &&
+                            new Date(c.expires_at) > new Date();
+                          const statusColor = c.status === 'granted'
+                            ? (isExpiringSoon ? '#F59E0B' : 'var(--color-success)')
+                            : 'var(--color-error)';
+                          const statusBg = c.status === 'granted'
+                            ? (isExpiringSoon ? 'rgba(245, 158, 11, 0.1)' : 'var(--color-success-bg)')
+                            : 'var(--color-error-bg)';
+                          return (
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.75rem',
+                              fontFamily: 'var(--font-mono)',
+                              background: statusBg,
+                              color: statusColor,
+                            }}>
+                              {isExpiringSoon ? 'expiring' : c.status}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '16px', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
                         {formatDateShort(c.granted_at)}
                       </td>
-                      <td style={{ padding: '16px', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                      <td style={{ padding: '16px', fontSize: '0.875rem', color: c.expires_at && new Date(c.expires_at) <= new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) ? '#F59E0B' : 'var(--color-text-secondary)' }}>
                         {formatDateShort(c.expires_at)}
                       </td>
                     </tr>

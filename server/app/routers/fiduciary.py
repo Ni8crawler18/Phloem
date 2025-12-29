@@ -3,6 +3,7 @@ Fiduciary Dashboard Router
 Endpoints for fiduciary dashboard management
 """
 import json
+from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from app.schemas import (
 )
 from app.services.auth import generate_api_key
 from app.services.audit import create_audit_log
+from app.services.expiry import EXPIRING_SOON_DAYS
 from app.dependencies.auth import get_current_fiduciary
 
 router = APIRouter(prefix="/api/fiduciary", tags=["Fiduciary Dashboard"])
@@ -44,6 +46,22 @@ def get_fiduciary_stats(
     active_consents = db.query(Consent).filter(
         Consent.fiduciary_id == current_fiduciary.id,
         Consent.status == ConsentStatus.GRANTED
+    ).count()
+
+    # Expiring consents (within EXPIRING_SOON_DAYS)
+    expiry_threshold = datetime.utcnow() + timedelta(days=EXPIRING_SOON_DAYS)
+    expiring_consents = db.query(Consent).filter(
+        Consent.fiduciary_id == current_fiduciary.id,
+        Consent.status == ConsentStatus.GRANTED,
+        Consent.expires_at != None,
+        Consent.expires_at <= expiry_threshold,
+        Consent.expires_at > datetime.utcnow()
+    ).count()
+
+    # Expired consents
+    expired_consents = db.query(Consent).filter(
+        Consent.fiduciary_id == current_fiduciary.id,
+        Consent.status == ConsentStatus.EXPIRED
     ).count()
 
     revoked_consents = db.query(Consent).filter(
@@ -77,6 +95,8 @@ def get_fiduciary_stats(
         active_purposes=active_purposes,
         total_consents=total_consents,
         active_consents=active_consents,
+        expiring_consents=expiring_consents,
+        expired_consents=expired_consents,
         revoked_consents=revoked_consents,
         unique_users=unique_users,
         recent_consents=recent_consents

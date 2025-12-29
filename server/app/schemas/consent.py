@@ -21,6 +21,11 @@ class ConsentRevokeRequest(BaseModel):
     reason: Optional[str] = None
 
 
+class ConsentRenewRequest(BaseModel):
+    """Schema for renewing consent"""
+    consent_uuid: str
+
+
 class ConsentResponse(BaseModel):
     """Schema for consent response"""
     id: int

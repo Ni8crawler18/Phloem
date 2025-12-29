@@ -6,7 +6,7 @@ import { formatDate, parseJSON } from '../utils/formatters';
 import {
   Shield, Check, X, FileText, Clock, Building2,
   RefreshCw, Download, AlertCircle, ChevronDown, ChevronUp,
-  Database, History, LogOut, Terminal
+  Database, History, LogOut, Terminal, AlertTriangle
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [expandedConsent, setExpandedConsent] = useState(null);
   const [grantingPurpose, setGrantingPurpose] = useState(null);
+  const [renewingConsent, setRenewingConsent] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -45,6 +46,41 @@ export default function Dashboard() {
       setError('Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper to check if consent is expiring soon (within 14 days)
+  const isExpiringSoon = (consent) => {
+    if (!consent.expires_at || consent.status !== 'granted') return false;
+    const expiresAt = new Date(consent.expires_at);
+    const now = new Date();
+    const daysUntilExpiry = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+    return daysUntilExpiry <= 14 && daysUntilExpiry > 0;
+  };
+
+  // Helper to check if consent is expired
+  const isExpired = (consent) => {
+    return consent.status === 'expired';
+  };
+
+  // Get days until expiry
+  const getDaysUntilExpiry = (consent) => {
+    if (!consent.expires_at) return null;
+    const expiresAt = new Date(consent.expires_at);
+    const now = new Date();
+    return Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+  };
+
+  // Handle renew consent
+  const handleRenewConsent = async (consentUuid) => {
+    setRenewingConsent(consentUuid);
+    try {
+      await consents.renew(consentUuid);
+      await loadData();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to renew consent');
+    } finally {
+      setRenewingConsent(null);
     }
   };
 
@@ -290,8 +326,8 @@ export default function Dashboard() {
             {[
               { label: 'Total Consents', value: stats.total_consents, color: 'var(--color-primary)' },
               { label: 'Active', value: stats.active_consents, color: 'var(--color-success)' },
-              { label: 'Revoked', value: stats.revoked_consents, color: 'var(--color-error)' },
-              { label: 'Fiduciaries', value: availableFiduciaries.length, color: 'var(--color-warning)' },
+              { label: 'Expiring Soon', value: myConsents.filter(c => isExpiringSoon(c.consent)).length, color: 'var(--color-warning)' },
+              { label: 'Expired', value: myConsents.filter(c => isExpired(c.consent)).length, color: 'var(--color-error)' },
             ].map((stat, i) => (
               <div key={i} className="card" style={{ padding: '24px' }}>
                 <div style={{
@@ -361,7 +397,17 @@ export default function Dashboard() {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <span className={`badge ${item.consent.status === 'granted' ? 'badge-success' : 'badge-error'}`}>
+                        {isExpiringSoon(item.consent) && (
+                          <span className="badge badge-warning" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertTriangle size={12} />
+                            {getDaysUntilExpiry(item.consent)} days left
+                          </span>
+                        )}
+                        <span className={`badge ${
+                          item.consent.status === 'granted' ? 'badge-success' :
+                          item.consent.status === 'expired' ? 'badge-warning' :
+                          'badge-error'
+                        }`}>
                           {item.consent.status}
                         </span>
                         {expandedConsent === item.consent.uuid ? (
@@ -420,6 +466,23 @@ export default function Dashboard() {
                             <Download size={16} />
                             Download Receipt
                           </button>
+                          {(isExpiringSoon(item.consent) || isExpired(item.consent)) && (
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRenewConsent(item.consent.uuid);
+                              }}
+                              disabled={renewingConsent === item.consent.uuid}
+                            >
+                              {renewingConsent === item.consent.uuid ? (
+                                <RefreshCw size={16} className="spin" />
+                              ) : (
+                                <RefreshCw size={16} />
+                              )}
+                              Renew Consent
+                            </button>
+                          )}
                           {item.consent.status === 'granted' && (
                             <button
                               className="btn btn-danger btn-sm"

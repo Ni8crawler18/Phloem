@@ -8,6 +8,8 @@ export const consents = {
   list: (status) => client.get('/consents', { params: { status } }),
   grant: (data) => client.post('/consents/grant', data),
   revoke: (data) => client.post('/consents/revoke', data),
+  renew: (consent_uuid) => client.post('/consents/renew', { consent_uuid }),
+  expiring: (days = 14) => client.get('/consents/expiring/list', { params: { days } }),
   getReceipt: (uuid) => client.get(`/consents/${uuid}/receipt`),
   downloadReceiptPdf: async (uuid) => {
     const token = localStorage.getItem('token');

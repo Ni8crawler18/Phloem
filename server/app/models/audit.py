@@ -21,6 +21,8 @@ class AuditAction(enum.Enum):
     """Audit action types"""
     CONSENT_GRANTED = "consent_granted"
     CONSENT_REVOKED = "consent_revoked"
+    CONSENT_RENEWED = "consent_renewed"
+    CONSENT_EXPIRED = "consent_expired"
     CONSENT_UPDATED = "consent_updated"
     PURPOSE_CREATED = "purpose_created"
     USER_REGISTERED = "user_registered"

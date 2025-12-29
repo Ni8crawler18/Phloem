@@ -21,13 +21,20 @@ from app.models import (
     ConsentStatus, AuditAction
 )
 from app.schemas import (
-    ConsentGrantRequest, ConsentRevokeRequest, ConsentResponse,
-    ConsentDetailResponse, ConsentReceiptResponse, PurposeResponse,
-    DataFiduciaryResponse
+    ConsentGrantRequest, ConsentRevokeRequest, ConsentRenewRequest,
+    ConsentResponse, ConsentDetailResponse, ConsentReceiptResponse,
+    PurposeResponse, DataFiduciaryResponse
 )
 from app.services.consent import generate_consent_receipt
 from app.services.audit import create_audit_log
 from app.services.webhook import trigger_consent_webhooks
+from app.services.expiry import (
+    check_and_update_expired_consent,
+    get_user_expiring_consents,
+    renew_consent as renew_consent_service,
+    get_days_until_expiry,
+    EXPIRING_SOON_DAYS
+)
 from app.dependencies.auth import get_current_user
 from app.models.webhook import WebhookEvent
 
@@ -193,6 +200,10 @@ def list_my_consents(
         query = query.filter(Consent.status == ConsentStatus(status))
 
     consents = query.order_by(Consent.granted_at.desc()).all()
+
+    # Check and update expired consents on-demand
+    for c in consents:
+        check_and_update_expired_consent(db, c)
 
     result = []
     for c in consents:
@@ -410,4 +421,94 @@ def get_consent_receipt_pdf(
         headers={
             "Content-Disposition": f"attachment; filename=consent-receipt-{consent.uuid}.pdf"
         }
+    )
+
+
+@router.get("/expiring/list", response_model=List[ConsentDetailResponse])
+def list_expiring_consents(
+    days: int = EXPIRING_SOON_DAYS,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List consents expiring within X days (default 14 days)"""
+    expiring = get_user_expiring_consents(db, current_user.id, days)
+
+    result = []
+    for c in expiring:
+        purpose = db.query(Purpose).filter(Purpose.id == c.purpose_id).first()
+        fiduciary = db.query(DataFiduciary).filter(
+            DataFiduciary.id == c.fiduciary_id
+        ).first()
+        result.append(ConsentDetailResponse(
+            consent=ConsentResponse.model_validate(c),
+            purpose=PurposeResponse.model_validate(purpose),
+            fiduciary=DataFiduciaryResponse.model_validate(fiduciary)
+        ))
+
+    return result
+
+
+@router.post("/renew", response_model=ConsentReceiptResponse)
+def renew_consent(
+    data: ConsentRenewRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Renew an expiring or expired consent (DPDP Section 6(7))"""
+    consent = db.query(Consent).filter(
+        Consent.uuid == data.consent_uuid,
+        Consent.user_id == current_user.id
+    ).first()
+
+    if not consent:
+        raise HTTPException(status_code=404, detail="Consent not found")
+
+    if consent.status == ConsentStatus.REVOKED:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot renew a revoked consent. Please grant a new consent."
+        )
+
+    purpose = db.query(Purpose).filter(Purpose.id == consent.purpose_id).first()
+    if not purpose:
+        raise HTTPException(status_code=404, detail="Purpose not found")
+
+    fiduciary = db.query(DataFiduciary).filter(
+        DataFiduciary.id == consent.fiduciary_id
+    ).first()
+
+    # Renew the consent
+    consent = renew_consent_service(db, consent, purpose)
+
+    # Generate new receipt
+    receipt = generate_consent_receipt(db, consent, current_user, purpose, fiduciary)
+
+    # Audit log
+    create_audit_log(
+        db, AuditAction.CONSENT_RENEWED, "consent", consent.uuid,
+        user_id=current_user.id, fiduciary_id=fiduciary.id,
+        details={
+            "purpose": purpose.name,
+            "new_expires_at": consent.expires_at.isoformat()
+        },
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return ConsentReceiptResponse(
+        receipt_id=receipt.receipt_id,
+        consent_uuid=consent.uuid,
+        user_name=current_user.name,
+        user_email=current_user.email,
+        fiduciary_name=fiduciary.name,
+        purpose_name=purpose.name,
+        purpose_description=purpose.description,
+        data_categories=json.loads(purpose.data_categories),
+        legal_basis=purpose.legal_basis,
+        retention_period_days=purpose.retention_period_days,
+        granted_at=consent.granted_at,
+        expires_at=consent.expires_at,
+        status="granted",
+        signature=receipt.signature
     )
