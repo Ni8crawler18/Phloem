@@ -16,8 +16,8 @@ app = FastAPI(
     title=f"{settings.APP_NAME} - Consent Management System",
     description="DPDP & GDPR Compliant Consent Management Platform",
     version=settings.APP_VERSION,
-    docs_url="/api/docs",
-    redoc_url="/api/redoc"
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # CORS middleware - Allow production and local origins
