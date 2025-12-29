@@ -2,22 +2,38 @@
 Authentication Router
 User and Fiduciary authentication endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import secrets
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.database import get_db
+from app.config import settings
 from app.models import User, DataFiduciary, AuditAction
 from app.schemas import (
     UserCreate, UserLogin, UserResponse, Token,
-    FiduciaryRegister, AuthResponse, DataFiduciaryWithMaskedKey
+    FiduciaryRegister, AuthResponse, DataFiduciaryWithMaskedKey,
+    VerifyEmailRequest, ResendVerificationRequest,
+    ForgotPasswordRequest, ResetPasswordRequest, MessageResponse
 )
 from app.services.auth import (
     verify_password, get_password_hash, create_access_token, generate_api_key
 )
 from app.services.audit import create_audit_log
+from app.services.email import email_service
 from app.dependencies.auth import get_current_user, get_current_fiduciary
+
+
+def generate_verification_token() -> str:
+    """Generate a secure random token for email verification"""
+    return secrets.token_urlsafe(32)
+
+
+def generate_reset_token() -> str:
+    """Generate a secure random token for password reset"""
+    return secrets.token_urlsafe(32)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -27,11 +43,12 @@ limiter = Limiter(key_func=get_remote_address)
 
 # ========== User Authentication ==========
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=MessageResponse)
 @limiter.limit("5/minute")
-def register_user(
+async def register_user(
     request: Request,
     user_data: UserCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """Register a new data principal (user)"""
@@ -39,11 +56,18 @@ def register_user(
     if existing:
         raise HTTPException(status_code=400, detail="Registration failed. Please try again or contact support.")
 
+    # Generate verification token
+    verification_token = generate_verification_token()
+    token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+
     user = User(
         email=user_data.email,
         name=user_data.name,
         phone=user_data.phone,
-        hashed_password=get_password_hash(user_data.password)
+        hashed_password=get_password_hash(user_data.password),
+        email_verified=False,
+        verification_token=verification_token,
+        verification_token_expires=token_expires
     )
     db.add(user)
     db.commit()
@@ -56,7 +80,13 @@ def register_user(
         ip_address=request.client.host if request.client else None
     )
 
-    return user
+    # Send verification email in background
+    background_tasks.add_task(
+        email_service.send_verification_email,
+        user.email, user.name, verification_token, "user"
+    )
+
+    return MessageResponse(message="Registration successful. Please check your email to verify your account.")
 
 
 @router.post("/login", response_model=Token)
@@ -66,6 +96,13 @@ def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db))
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Check email verification
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Email not verified. Please check your inbox for the verification link."
+        )
 
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer"}
@@ -77,13 +114,156 @@ def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+# ========== User Email Verification ==========
+
+@router.post("/verify-email", response_model=MessageResponse)
+@limiter.limit("10/minute")
+async def verify_email(
+    request: Request,
+    data: VerifyEmailRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Verify user email with token"""
+    user = db.query(User).filter(User.verification_token == data.token).first()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+
+    # Check expiration
+    if user.verification_token_expires and user.verification_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Verification token has expired. Please request a new one.")
+
+    # Mark as verified
+    user.email_verified = True
+    user.verification_token = None
+    user.verification_token_expires = None
+    db.commit()
+
+    create_audit_log(
+        db, AuditAction.EMAIL_VERIFIED, "user", user.uuid,
+        user_id=user.id,
+        details={"email": user.email},
+        ip_address=request.client.host if request.client else None
+    )
+
+    # Send welcome email
+    background_tasks.add_task(
+        email_service.send_welcome_email,
+        user.email, user.name, "user"
+    )
+
+    return MessageResponse(message="Email verified successfully. You can now login.")
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+@limiter.limit("3/minute")
+async def resend_verification(
+    request: Request,
+    data: ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Resend verification email"""
+    # Always return success to prevent user enumeration
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if user and not user.email_verified:
+        # Generate new token
+        verification_token = generate_verification_token()
+        token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+
+        user.verification_token = verification_token
+        user.verification_token_expires = token_expires
+        db.commit()
+
+        background_tasks.add_task(
+            email_service.send_verification_email,
+            user.email, user.name, verification_token, "user"
+        )
+
+    return MessageResponse(message="If the email exists and is not verified, a new verification link has been sent.")
+
+
+# ========== User Password Reset ==========
+
+@router.post("/forgot-password", response_model=MessageResponse)
+@limiter.limit("5/minute")
+async def forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Request password reset email"""
+    # Always return success to prevent user enumeration
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if user:
+        # Generate reset token
+        reset_token = generate_reset_token()
+        token_expires = datetime.now(timezone.utc) + timedelta(minutes=settings.RESET_EXPIRE_MINUTES)
+
+        user.reset_token = reset_token
+        user.reset_token_expires = token_expires
+        db.commit()
+
+        background_tasks.add_task(
+            email_service.send_password_reset_email,
+            user.email, user.name, reset_token, "user"
+        )
+
+    return MessageResponse(message="If the email exists, a password reset link has been sent.")
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+@limiter.limit("5/minute")
+async def reset_password(
+    request: Request,
+    data: ResetPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Reset password with token"""
+    user = db.query(User).filter(User.reset_token == data.token).first()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    # Check expiration
+    if user.reset_token_expires and user.reset_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired. Please request a new one.")
+
+    # Update password
+    user.hashed_password = get_password_hash(data.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+
+    create_audit_log(
+        db, AuditAction.PASSWORD_RESET, "user", user.uuid,
+        user_id=user.id,
+        details={"email": user.email},
+        ip_address=request.client.host if request.client else None
+    )
+
+    # Notify user
+    background_tasks.add_task(
+        email_service.send_password_changed_email,
+        user.email, user.name
+    )
+
+    return MessageResponse(message="Password reset successfully. You can now login with your new password.")
+
+
 # ========== Fiduciary Authentication ==========
 
-@router.post("/fiduciary/register", response_model=AuthResponse)
+@router.post("/fiduciary/register", response_model=MessageResponse)
 @limiter.limit("5/minute")
-def register_fiduciary(
+async def register_fiduciary(
     request: Request,
     data: FiduciaryRegister,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """Register a new data fiduciary (company)"""
@@ -93,13 +273,20 @@ def register_fiduciary(
     if existing:
         raise HTTPException(status_code=400, detail="Registration failed. Please try again or contact support.")
 
+    # Generate verification token
+    verification_token = generate_verification_token()
+    token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+
     fiduciary = DataFiduciary(
         name=data.name,
         description=data.description,
         privacy_policy_url=data.privacy_policy_url,
         contact_email=data.contact_email,
         hashed_password=get_password_hash(data.password),
-        api_key=generate_api_key()
+        api_key=generate_api_key(),
+        email_verified=False,
+        verification_token=verification_token,
+        verification_token_expires=token_expires
     )
     db.add(fiduciary)
     db.commit()
@@ -112,14 +299,13 @@ def register_fiduciary(
         ip_address=request.client.host if request.client else None
     )
 
-    token = create_access_token({"sub": str(fiduciary.id), "role": "fiduciary"})
-    return AuthResponse(
-        access_token=token,
-        token_type="bearer",
-        role="fiduciary",
-        name=fiduciary.name,
-        email=fiduciary.contact_email
+    # Send verification email in background
+    background_tasks.add_task(
+        email_service.send_verification_email,
+        fiduciary.contact_email, fiduciary.name, verification_token, "fiduciary"
     )
+
+    return MessageResponse(message="Registration successful. Please check your email to verify your account.")
 
 
 @router.post("/fiduciary/login", response_model=AuthResponse)
@@ -135,6 +321,13 @@ def login_fiduciary(request: Request, data: UserLogin, db: Session = Depends(get
 
     if not verify_password(data.password, fiduciary.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Check email verification
+    if not fiduciary.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Email not verified. Please check your inbox for the verification link."
+        )
 
     token = create_access_token({"sub": str(fiduciary.id), "role": "fiduciary"})
     return AuthResponse(
@@ -170,3 +363,145 @@ def get_fiduciary_me(
         api_key_suffix=suffix,
         api_key_hint=hint
     )
+
+
+# ========== Fiduciary Email Verification ==========
+
+@router.post("/fiduciary/verify-email", response_model=MessageResponse)
+@limiter.limit("10/minute")
+async def verify_fiduciary_email(
+    request: Request,
+    data: VerifyEmailRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Verify fiduciary email with token"""
+    fiduciary = db.query(DataFiduciary).filter(DataFiduciary.verification_token == data.token).first()
+
+    if not fiduciary:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+
+    # Check expiration
+    if fiduciary.verification_token_expires and fiduciary.verification_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Verification token has expired. Please request a new one.")
+
+    # Mark as verified
+    fiduciary.email_verified = True
+    fiduciary.verification_token = None
+    fiduciary.verification_token_expires = None
+    db.commit()
+
+    create_audit_log(
+        db, AuditAction.EMAIL_VERIFIED, "fiduciary", fiduciary.uuid,
+        fiduciary_id=fiduciary.id,
+        details={"email": fiduciary.contact_email},
+        ip_address=request.client.host if request.client else None
+    )
+
+    # Send welcome email
+    background_tasks.add_task(
+        email_service.send_welcome_email,
+        fiduciary.contact_email, fiduciary.name, "fiduciary"
+    )
+
+    return MessageResponse(message="Email verified successfully. You can now login.")
+
+
+@router.post("/fiduciary/resend-verification", response_model=MessageResponse)
+@limiter.limit("3/minute")
+async def resend_fiduciary_verification(
+    request: Request,
+    data: ResendVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Resend verification email for fiduciary"""
+    # Always return success to prevent user enumeration
+    fiduciary = db.query(DataFiduciary).filter(DataFiduciary.contact_email == data.email).first()
+
+    if fiduciary and not fiduciary.email_verified:
+        # Generate new token
+        verification_token = generate_verification_token()
+        token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+
+        fiduciary.verification_token = verification_token
+        fiduciary.verification_token_expires = token_expires
+        db.commit()
+
+        background_tasks.add_task(
+            email_service.send_verification_email,
+            fiduciary.contact_email, fiduciary.name, verification_token, "fiduciary"
+        )
+
+    return MessageResponse(message="If the email exists and is not verified, a new verification link has been sent.")
+
+
+# ========== Fiduciary Password Reset ==========
+
+@router.post("/fiduciary/forgot-password", response_model=MessageResponse)
+@limiter.limit("5/minute")
+async def fiduciary_forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Request password reset email for fiduciary"""
+    # Always return success to prevent user enumeration
+    fiduciary = db.query(DataFiduciary).filter(DataFiduciary.contact_email == data.email).first()
+
+    if fiduciary:
+        # Generate reset token
+        reset_token = generate_reset_token()
+        token_expires = datetime.now(timezone.utc) + timedelta(minutes=settings.RESET_EXPIRE_MINUTES)
+
+        fiduciary.reset_token = reset_token
+        fiduciary.reset_token_expires = token_expires
+        db.commit()
+
+        background_tasks.add_task(
+            email_service.send_password_reset_email,
+            fiduciary.contact_email, fiduciary.name, reset_token, "fiduciary"
+        )
+
+    return MessageResponse(message="If the email exists, a password reset link has been sent.")
+
+
+@router.post("/fiduciary/reset-password", response_model=MessageResponse)
+@limiter.limit("5/minute")
+async def fiduciary_reset_password(
+    request: Request,
+    data: ResetPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """Reset fiduciary password with token"""
+    fiduciary = db.query(DataFiduciary).filter(DataFiduciary.reset_token == data.token).first()
+
+    if not fiduciary:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    # Check expiration
+    if fiduciary.reset_token_expires and fiduciary.reset_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired. Please request a new one.")
+
+    # Update password
+    fiduciary.hashed_password = get_password_hash(data.new_password)
+    fiduciary.reset_token = None
+    fiduciary.reset_token_expires = None
+    db.commit()
+
+    create_audit_log(
+        db, AuditAction.PASSWORD_RESET, "fiduciary", fiduciary.uuid,
+        fiduciary_id=fiduciary.id,
+        details={"email": fiduciary.contact_email},
+        ip_address=request.client.host if request.client else None
+    )
+
+    # Notify user
+    background_tasks.add_task(
+        email_service.send_password_changed_email,
+        fiduciary.contact_email, fiduciary.name
+    )
+
+    return MessageResponse(message="Password reset successfully. You can now login with your new password.")

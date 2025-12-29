@@ -41,6 +41,14 @@ from app.schemas.settings import (
     AccountDeleteRequest,
     AccountDeleteResponse,
 )
+from app.schemas.auth import (
+    VerifyEmailRequest,
+    ResendVerificationRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MessageResponse,
+    VerificationStatusResponse,
+)
 
 __all__ = [
     # User
@@ -64,4 +72,7 @@ __all__ = [
     "PasswordConfirmation", "UserProfileUpdate", "UserPasswordChange",
     "FiduciaryProfileUpdate", "FiduciaryPasswordChange",
     "AccountDeleteRequest", "AccountDeleteResponse",
+    # Auth
+    "VerifyEmailRequest", "ResendVerificationRequest", "ForgotPasswordRequest",
+    "ResetPasswordRequest", "MessageResponse", "VerificationStatusResponse",
 ]

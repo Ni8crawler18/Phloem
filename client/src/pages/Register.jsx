@@ -49,7 +49,6 @@ export default function Register() {
           privacy_policy_url: formData.privacy_policy_url || null,
           password: formData.password,
         }, 'fiduciary');
-        navigate('/fiduciary/dashboard');
       } else {
         await register({
           name: formData.name,
@@ -57,9 +56,9 @@ export default function Register() {
           phone: formData.phone || null,
           password: formData.password,
         }, 'user');
-        setSuccess(true);
-        setTimeout(() => navigate('/login'), 2000);
       }
+      // Both user and fiduciary need email verification
+      setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
     } finally {
@@ -246,25 +245,49 @@ export default function Register() {
         alignItems: 'center',
         justifyContent: 'center',
         background: 'var(--color-background)',
+        padding: '24px',
       }}>
-        <div style={{ textAlign: 'center', maxWidth: '400px' }}>
+        <div style={{
+          textAlign: 'center',
+          maxWidth: '480px',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '48px 32px',
+        }}>
           <div style={{
-            width: '72px',
-            height: '72px',
-            background: 'var(--color-success-bg)',
+            width: '80px',
+            height: '80px',
+            background: 'rgba(79, 125, 243, 0.1)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 24px',
           }}>
-            <CheckCircle size={36} color="var(--color-success)" />
+            <Mail size={40} color="var(--color-primary)" />
           </div>
-          <h2 style={{ marginBottom: '12px' }}>Registration Successful</h2>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
-            Your account has been created.
+          <h2 style={{ marginBottom: '12px' }}>Check Your Email</h2>
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '24px' }}>
+            We've sent a verification link to <strong>{formData.email}</strong>. Please check your inbox and click the link to verify your account.
           </p>
-          <span className="code-label">Redirecting to login...</span>
+          <p style={{
+            color: 'var(--color-text-muted)',
+            fontSize: '0.875rem',
+            marginBottom: '24px',
+          }}>
+            The link will expire in 24 hours.
+          </p>
+          <Link
+            to="/verify-email"
+            className="btn btn-secondary"
+            style={{ marginRight: '12px' }}
+          >
+            Resend Email
+          </Link>
+          <Link to="/login" className="btn btn-primary">
+            Go to Login
+          </Link>
         </div>
       </div>
     );

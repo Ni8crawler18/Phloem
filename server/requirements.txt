@@ -1,8 +1,8 @@
 # Eigensparse - Backend Dependencies
 
 # Web Framework
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
 
 # Database
 sqlalchemy==2.0.25
@@ -11,21 +11,24 @@ psycopg2-binary==2.9.9
 # Validation & Settings
 pydantic==2.5.3
 pydantic-settings==2.1.0
-email-validator==2.2.0
+email-validator==2.12.0
 
 # Authentication
-python-jose[cryptography]==3.3.0
-bcrypt==4.1.2
+python-jose[cryptography]==3.5.0
+bcrypt==5.0.0
 
 # Utilities
-python-multipart==0.0.6
+python-multipart==0.0.21
 python-dotenv==1.0.0
 
 # Rate Limiting
 slowapi==0.1.9
 
 # HTTP Client (for webhooks)
-httpx==0.27.0
+httpx==0.28.0
 
 # PDF Generation
-reportlab==4.0.9
+reportlab==4.4.0
+
+# Email
+aiosmtplib==5.0.0

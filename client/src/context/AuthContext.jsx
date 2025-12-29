@@ -133,16 +133,11 @@ export function AuthProvider({ children }) {
     let response;
     if (registerRole === 'fiduciary') {
       response = await auth.fiduciaryRegister(data);
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('role', 'fiduciary');
-      localStorage.setItem('lastActivity', Date.now().toString());
-      setRole('fiduciary');
-
-      const meResponse = await auth.fiduciaryMe();
-      setUser(meResponse.data);
     } else {
       response = await auth.register(data);
     }
+    // Both user and fiduciary registration now return a message
+    // and require email verification before login
     return response.data;
   };
 

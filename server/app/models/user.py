@@ -25,6 +25,15 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Email verification
+    email_verified = Column(Boolean, default=False)
+    verification_token = Column(String(100), nullable=True)
+    verification_token_expires = Column(DateTime(timezone=True), nullable=True)
+
+    # Password reset
+    reset_token = Column(String(100), nullable=True)
+    reset_token_expires = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     consents = relationship("Consent", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")

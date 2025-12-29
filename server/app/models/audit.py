@@ -26,6 +26,8 @@ class AuditAction(enum.Enum):
     CONSENT_UPDATED = "consent_updated"
     PURPOSE_CREATED = "purpose_created"
     USER_REGISTERED = "user_registered"
+    EMAIL_VERIFIED = "email_verified"
+    PASSWORD_RESET = "password_reset"
     DATA_ACCESSED = "data_accessed"
     RECEIPT_GENERATED = "receipt_generated"
 
