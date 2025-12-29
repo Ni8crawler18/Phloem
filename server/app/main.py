@@ -21,12 +21,10 @@ app = FastAPI(
 )
 
 # CORS middleware - Allow production and local origins
-cors_origins = settings.cors_origins_list + [
+cors_origins = [
     "https://eigensparse.com",
     "https://www.eigensparse.com",
-    "http://localhost:5173",
-    "http://localhost:3000",
-]
+] + settings.cors_origins_list
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
