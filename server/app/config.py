@@ -15,18 +15,19 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "change-this-in-production-min-32-characters-long"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
-
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  
     # CORS
     CORS_ORIGINS: str = '["http://localhost:5173", "http://localhost:3000"]'
 
     @property
     def cors_origins_list(self) -> List[str]:
-        """Parse CORS origins from JSON string"""
+        """Parse CORS origins from JSON string or comma-separated"""
         try:
+            # Try JSON first
             return json.loads(self.CORS_ORIGINS)
         except json.JSONDecodeError:
-            return ["http://localhost:5173"]
+            # Fall back to comma-separated
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 
     # App Info
     APP_NAME: str = "Eigensparse"
@@ -41,3 +42,4 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+]
