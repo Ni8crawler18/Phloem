@@ -8,12 +8,12 @@ JavaScript SDK for Eigensparse Consent Management System.
 
 ### npm
 ```bash
-npm install @eigensparse/sdk
+npm install eigensparse-sdk
 ```
 
 ### CDN
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@eigensparse/sdk/dist/eigensparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/eigensparse-sdk/dist/eigensparse.min.js"></script>
 ```
 
 ## Quick Start
@@ -172,7 +172,7 @@ try {
 Full type definitions included:
 
 ```typescript
-import Eigensparse, { EigensparseClient, ConsentStatus, Purpose } from '@eigensparse/sdk';
+import Eigensparse, { EigensparseClient, ConsentStatus, Purpose } from 'eigensparse-sdk';
 
 const client: EigensparseClient = Eigensparse.createClient({ apiKey: 'key' });
 const status: ConsentStatus = await client.checkConsent('user@example.com');

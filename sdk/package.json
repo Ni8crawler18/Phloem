@@ -1,10 +1,10 @@
 {
-  "name": "@eigensparse/sdk",
+  "name": "eigensparse-sdk",
   "version": "1.0.0",
   "description": "Eigensparse Consent Management SDK - DPDP Act & GDPR Compliant",
   "main": "dist/eigensparse.min.js",
   "module": "src/index.js",
-  "types": "src/index.d.ts",
+  "types": "dist/eigensparse.d.ts",
   "files": [
     "dist",
     "src",
@@ -21,15 +21,15 @@
     "india",
     "eu"
   ],
-  "author": "Eigensparse Team",
+  "author": "Ni8crawler18",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eigensparse/sdk"
+    "url": "https://github.com/Ni8crawler18/Phloem"
   },
-  "homepage": "https://eigensparse.com/docs/sdk",
+  "homepage": "https://eigensparse.com",
   "bugs": {
-    "url": "https://github.com/eigensparse/sdk/issues"
+    "url": "https://github.com/Ni8crawler18/Phloem/issues"
   },
   "scripts": {
     "build": "npm run build:min && npm run build:types",
