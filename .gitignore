@@ -111,5 +111,3 @@ playwright-report/
 .cache/
 *.pid
 *.seed
-workflow.txt
-docs/
