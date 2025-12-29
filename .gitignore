@@ -111,3 +111,5 @@ playwright-report/
 .cache/
 *.pid
 *.seed
+CLAUDE.md
+workflow.md
