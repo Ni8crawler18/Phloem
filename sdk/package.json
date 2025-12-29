@@ -1,0 +1,47 @@
+{
+  "name": "@eigensparse/sdk",
+  "version": "1.0.0",
+  "description": "Eigensparse Consent Management SDK - DPDP Act & GDPR Compliant",
+  "main": "dist/eigensparse.min.js",
+  "module": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "consent",
+    "privacy",
+    "GDPR",
+    "DPDP",
+    "consent-management",
+    "data-protection",
+    "compliance",
+    "india",
+    "eu"
+  ],
+  "author": "Eigensparse Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eigensparse/sdk"
+  },
+  "homepage": "https://eigensparse.com/docs/sdk",
+  "bugs": {
+    "url": "https://github.com/eigensparse/sdk/issues"
+  },
+  "scripts": {
+    "build": "npm run build:min && npm run build:types",
+    "build:min": "cp src/index.js dist/eigensparse.min.js",
+    "build:types": "cp src/index.d.ts dist/eigensparse.d.ts",
+    "test": "node examples/nodejs-integration.js",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browser": "dist/eigensparse.min.js",
+  "unpkg": "dist/eigensparse.min.js",
+  "jsdelivr": "dist/eigensparse.min.js"
+}
