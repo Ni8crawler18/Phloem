@@ -67,9 +67,13 @@ export default function FiduciaryDashboard() {
     if (!confirm('Are you sure? This will invalidate your current API key.')) return;
     try {
       const res = await fiduciaryDashboard.regenerateApiKey();
+      // Update user object in localStorage with new API key
+      const updatedUser = { ...user, api_key: res.data.api_key };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
       window.location.reload();
     } catch (error) {
-      alert('Failed to regenerate API key');
+      console.error('API Key regeneration error:', error);
+      alert('Failed to regenerate API key: ' + (error.response?.data?.detail || error.message));
     }
   };
 

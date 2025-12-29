@@ -73,12 +73,11 @@ export default function Dashboard() {
 
   const downloadReceipt = async (consentUuid) => {
     try {
-      const response = await consents.getReceipt(consentUuid);
-      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+      const blob = await consents.downloadReceiptPdf(consentUuid);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `consent-receipt-${consentUuid}.json`;
+      a.download = `consent-receipt-${consentUuid}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {

@@ -3,10 +3,17 @@ Consents Router
 Consent grant, revoke, and management endpoints
 """
 import json
+import io
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import inch
 
 from app.database import get_db
 from app.models import (
@@ -210,4 +217,164 @@ def get_consent_receipt(
         expires_at=consent.expires_at,
         status=consent.status.value,
         signature=receipt.signature
+    )
+
+
+@router.get("/{uuid}/receipt/pdf")
+def get_consent_receipt_pdf(
+    uuid: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download consent receipt as PDF"""
+    consent = db.query(Consent).filter(
+        Consent.uuid == uuid,
+        Consent.user_id == current_user.id
+    ).first()
+
+    if not consent:
+        raise HTTPException(status_code=404, detail="Consent not found")
+
+    receipt = db.query(ConsentReceipt).filter(
+        ConsentReceipt.consent_id == consent.id
+    ).first()
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+
+    purpose = db.query(Purpose).filter(Purpose.id == consent.purpose_id).first()
+    fiduciary = db.query(DataFiduciary).filter(
+        DataFiduciary.id == consent.fiduciary_id
+    ).first()
+
+    # Generate PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Title
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=20,
+        textColor=colors.HexColor('#1e40af')
+    )
+    story.append(Paragraph("CONSENT RECEIPT", title_style))
+    story.append(Paragraph("Eigensparse Consent Management System", styles['Normal']))
+    story.append(Spacer(1, 20))
+
+    # Receipt Info Table
+    data = [
+        ["Receipt ID", receipt.receipt_id],
+        ["Consent UUID", consent.uuid],
+        ["Status", consent.status.value.upper()],
+        ["Granted At", consent.granted_at.strftime("%Y-%m-%d %H:%M:%S UTC")],
+        ["Expires At", consent.expires_at.strftime("%Y-%m-%d %H:%M:%S UTC") if consent.expires_at else "N/A"],
+    ]
+
+    table = Table(data, colWidths=[2*inch, 4*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 20))
+
+    # Data Principal Section
+    story.append(Paragraph("DATA PRINCIPAL", styles['Heading2']))
+    data = [
+        ["Name", current_user.name],
+        ["Email", current_user.email],
+    ]
+    table = Table(data, colWidths=[2*inch, 4*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 20))
+
+    # Data Fiduciary Section
+    story.append(Paragraph("DATA FIDUCIARY", styles['Heading2']))
+    data = [
+        ["Organization", fiduciary.name],
+        ["Contact", fiduciary.contact_email],
+    ]
+    table = Table(data, colWidths=[2*inch, 4*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 20))
+
+    # Purpose Section
+    story.append(Paragraph("CONSENT PURPOSE", styles['Heading2']))
+    categories = json.loads(purpose.data_categories)
+    data = [
+        ["Purpose", purpose.name],
+        ["Description", purpose.description],
+        ["Legal Basis", purpose.legal_basis],
+        ["Data Categories", ", ".join(categories)],
+        ["Retention Period", f"{purpose.retention_period_days} days"],
+    ]
+    table = Table(data, colWidths=[2*inch, 4*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('PADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 20))
+
+    # Signature
+    story.append(Paragraph("CRYPTOGRAPHIC SIGNATURE (SHA-256)", styles['Heading2']))
+    sig_style = ParagraphStyle(
+        'Signature',
+        parent=styles['Normal'],
+        fontSize=8,
+        fontName='Courier',
+        backColor=colors.HexColor('#f8fafc'),
+        borderPadding=10,
+        wordWrap='CJK'
+    )
+    story.append(Paragraph(receipt.signature, sig_style))
+    story.append(Spacer(1, 20))
+
+    # Footer
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.HexColor('#64748b'),
+        alignment=1
+    )
+    story.append(Paragraph(
+        "This receipt is compliant with DPDP Act 2023 (India) and GDPR (EU).<br/>"
+        "Generated by Eigensparse Consent Management System",
+        footer_style
+    ))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=consent-receipt-{consent.uuid}.pdf"
+        }
     )
