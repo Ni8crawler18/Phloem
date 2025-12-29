@@ -15,6 +15,7 @@ export default function Navbar() {
     { name: 'Protocol', href: '#protocol' },
     { name: 'Features', href: '#features' },
     { name: 'Compliance', href: '#compliance' },
+    { name: 'SDK', href: '/sdk-demo' },
     { name: 'Docs', href: '/api/docs', external: true },
   ];
 
@@ -71,24 +72,43 @@ export default function Navbar() {
             gap: '32px',
           }}>
             {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                target={link.external ? '_blank' : undefined}
-                rel={link.external ? 'noopener noreferrer' : undefined}
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '0.9375rem',
-                  fontWeight: '500',
-                  color: 'var(--color-text-secondary)',
-                  textDecoration: 'none',
-                  transition: 'color 0.2s ease',
-                }}
-                onMouseEnter={(e) => e.target.style.color = 'var(--color-text)'}
-                onMouseLeave={(e) => e.target.style.color = 'var(--color-text-secondary)'}
-              >
-                {link.name}
-              </a>
+              link.href.startsWith('/') && !link.external ? (
+                <Link
+                  key={link.name}
+                  to={link.href}
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.9375rem',
+                    fontWeight: '500',
+                    color: 'var(--color-text-secondary)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => e.target.style.color = 'var(--color-text)'}
+                  onMouseLeave={(e) => e.target.style.color = 'var(--color-text-secondary)'}
+                >
+                  {link.name}
+                </Link>
+              ) : (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  target={link.external ? '_blank' : undefined}
+                  rel={link.external ? 'noopener noreferrer' : undefined}
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '0.9375rem',
+                    fontWeight: '500',
+                    color: 'var(--color-text-secondary)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => e.target.style.color = 'var(--color-text)'}
+                  onMouseLeave={(e) => e.target.style.color = 'var(--color-text-secondary)'}
+                >
+                  {link.name}
+                </a>
+              )
             ))}
           </div>
         )}

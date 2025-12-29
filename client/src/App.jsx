@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import FiduciaryDashboard from './pages/FiduciaryDashboard';
+import SdkDemo from './pages/SdkDemo';
 
 function AppRoutes() {
   const { user, role } = useAuth();
@@ -22,6 +23,7 @@ function AppRoutes() {
       {!hideNavbar && <Navbar />}
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/sdk-demo" element={<SdkDemo />} />
         <Route
           path="/login"
           element={

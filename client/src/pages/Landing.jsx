@@ -540,16 +540,38 @@ export default function Landing() {
               }}>
                 // Developers
               </div>
-              {['Documentation', 'API Reference', 'SDK', 'Examples'].map((link, i) => (
-                <a key={i} href="#" style={{
-                  display: 'block',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '0.9375rem',
-                  marginBottom: '12px',
-                }}>
-                  {link}
-                </a>
-              ))}
+              <a href="https://eigensparse-api.onrender.com/docs" target="_blank" rel="noopener noreferrer" style={{
+                display: 'block',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.9375rem',
+                marginBottom: '12px',
+              }}>
+                API Reference
+              </a>
+              <Link to="/sdk-demo" style={{
+                display: 'block',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.9375rem',
+                marginBottom: '12px',
+              }}>
+                SDK Demo
+              </Link>
+              <a href="https://www.npmjs.com/package/eigensparse-sdk" target="_blank" rel="noopener noreferrer" style={{
+                display: 'block',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.9375rem',
+                marginBottom: '12px',
+              }}>
+                npm Package
+              </a>
+              <a href="https://github.com/Ni8crawler18/Phloem" target="_blank" rel="noopener noreferrer" style={{
+                display: 'block',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.9375rem',
+                marginBottom: '12px',
+              }}>
+                GitHub
+              </a>
             </div>
 
             {/* Resources */}
