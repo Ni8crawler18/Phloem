@@ -12,14 +12,12 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { name: 'Protocol', href: '#protocol' },
-    { name: 'Features', href: '#features' },
-    { name: 'Compliance', href: '#compliance' },
+    { name: 'API', href: '/api' },
     { name: 'SDK', href: '/sdk-demo' },
-    { name: 'Docs', href: '/api/docs', external: true },
+    { name: 'Docs', href: 'https://eigensparse.gitbook.io/docs/', external: true },
   ];
 
-  const isLanding = location.pathname === '/';
+  const showNavLinks = ['/', '/sdk-demo', '/api'].includes(location.pathname);
 
   return (
     <nav style={{
@@ -65,7 +63,7 @@ export default function Navbar() {
         </Link>
 
         {/* Center Nav Links */}
-        {isLanding && (
+        {showNavLinks && (
           <div style={{
             display: 'flex',
             alignItems: 'center',

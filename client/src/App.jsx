@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import FiduciaryDashboard from './pages/FiduciaryDashboard';
 import SdkDemo from './pages/SdkDemo';
+import Api from './pages/Api';
 
 function AppRoutes() {
   const { user, role } = useAuth();
@@ -24,6 +25,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/sdk-demo" element={<SdkDemo />} />
+        <Route path="/api" element={<Api />} />
         <Route
           path="/login"
           element={

@@ -540,13 +540,21 @@ export default function Landing() {
               }}>
                 // Developers
               </div>
-              <a href="https://eigensparse-api.onrender.com/docs" target="_blank" rel="noopener noreferrer" style={{
+              <Link to="/api" style={{
                 display: 'block',
                 color: 'var(--color-text-secondary)',
                 fontSize: '0.9375rem',
                 marginBottom: '12px',
               }}>
                 API Reference
+              </Link>
+              <a href="https://eigensparse.gitbook.io/docs/" target="_blank" rel="noopener noreferrer" style={{
+                display: 'block',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.9375rem',
+                marginBottom: '12px',
+              }}>
+                Documentation
               </a>
               <Link to="/sdk-demo" style={{
                 display: 'block',
