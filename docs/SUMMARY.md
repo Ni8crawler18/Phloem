@@ -16,6 +16,8 @@
 * [Purposes](api-reference/purposes.md)
 * [Fiduciaries](api-reference/fiduciaries.md)
 * [Users](api-reference/users.md)
+* [Settings](api-reference/settings.md)
+* [Webhooks](api-reference/webhooks.md)
 
 ## SDK
 

@@ -195,3 +195,115 @@ Returns a PDF file with:
 - Grant/expiration dates
 - Cryptographic signature
 - Compliance footer (DPDP Act & GDPR)
+
+---
+
+## Renew Consent
+
+Renew an expiring or expired consent. Extends the consent for another retention period.
+
+```http
+POST /api/consents/renew
+Authorization: Bearer {token}
+Content-Type: application/json
+```
+
+### Request Body
+
+```json
+{
+  "consent_uuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Response
+
+```json
+{
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "granted",
+  "granted_at": "2024-01-15T10:30:00Z",
+  "expires_at": "2026-01-15T10:30:00Z",
+  "renewed_at": "2025-01-10T14:20:00Z"
+}
+```
+
+### Errors
+
+| Code | Detail |
+|------|--------|
+| `404` | Consent not found |
+| `400` | Consent is revoked and cannot be renewed |
+
+---
+
+## Export Data (JSON)
+
+Export all user data including consents, purposes, and audit logs in JSON format. GDPR Article 20 compliant.
+
+```http
+GET /api/consents/export/json
+Authorization: Bearer {token}
+```
+
+### Response
+
+```json
+{
+  "export_date": "2025-01-15T10:30:00Z",
+  "user": {
+    "email": "john@example.com",
+    "name": "John Doe",
+    "phone": "+1234567890",
+    "created_at": "2024-01-01T00:00:00Z"
+  },
+  "consents": [
+    {
+      "uuid": "550e8400-e29b-41d4-a716-446655440000",
+      "status": "granted",
+      "fiduciary_name": "Demo Corp",
+      "purpose_name": "Marketing Analytics",
+      "granted_at": "2024-01-15T10:30:00Z",
+      "expires_at": "2025-01-15T10:30:00Z"
+    }
+  ],
+  "audit_logs": [
+    {
+      "action": "consent_granted",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "details": { ... }
+    }
+  ]
+}
+```
+
+---
+
+## Export Data (CSV)
+
+Export all user consent data in CSV format for easy spreadsheet analysis.
+
+```http
+GET /api/consents/export/csv
+Authorization: Bearer {token}
+```
+
+### Response
+
+Returns a CSV file with:
+- `Content-Type: text/csv`
+- `Content-Disposition: attachment; filename=eigensparse-export-{date}.csv`
+
+### CSV Columns
+
+| Column | Description |
+|--------|-------------|
+| `consent_uuid` | Unique consent identifier |
+| `status` | Current status (granted/revoked/expired) |
+| `fiduciary_name` | Organization name |
+| `purpose_name` | Purpose description |
+| `data_categories` | Categories of data collected |
+| `legal_basis` | Legal basis for processing |
+| `granted_at` | When consent was granted |
+| `expires_at` | When consent expires |
+| `revoked_at` | When consent was revoked (if applicable) |

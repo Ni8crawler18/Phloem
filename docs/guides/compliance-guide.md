@@ -141,29 +141,70 @@ Required information when collecting data:
 
 > "The data subject shall have the right to obtain from the controller the erasure of personal data."
 
-**Implementation Notes:**
+**Eigensparse Implementation:**
 
-Eigensparse tracks consent, not personal data. When processing an erasure request:
+Eigensparse provides complete account deletion functionality:
 
-1. Query consents for the user
-2. Revoke all active consents
-3. Process erasure in your systems
-4. Consent records are retained for audit (anonymized)
+```http
+POST /api/settings/user/delete-account
+Authorization: Bearer {token}
+Content-Type: application/json
 
-```javascript
-// Get all user consents
-const consents = await client.getUserConsents('user@example.com');
-
-// Revoke each one
-for (const consent of consents) {
-  if (consent.status === 'granted') {
-    await revokeConsent(consent.uuid);
-  }
+{
+  "password": "YourPassword123",
+  "confirmation": "DELETE"
 }
-
-// Then process erasure in your systems
-await deleteUserData('user@example.com');
 ```
+
+**What Gets Deleted:**
+- User profile information
+- All consent records
+- All consent receipts
+- Audit logs are anonymized (PII removed, records retained for compliance)
+
+**For Fiduciaries:**
+```http
+POST /api/settings/fiduciary/delete-account
+```
+This deletes the organization, all purposes, webhooks, and affects all user consents.
+
+**Security Features:**
+- Password verification required
+- Explicit "DELETE" confirmation text required
+- Rate limited to 3 requests/minute
+
+---
+
+### Article 20: Right to Data Portability
+
+> "The data subject shall have the right to receive the personal data concerning him or her... in a structured, commonly used and machine-readable format."
+
+**Eigensparse Implementation:**
+
+Export all user data in JSON or CSV format:
+
+```http
+GET /api/consents/export/json
+Authorization: Bearer {token}
+```
+
+Or for spreadsheet format:
+```http
+GET /api/consents/export/csv
+Authorization: Bearer {token}
+```
+
+**Export Contents:**
+- User profile information
+- All consent records (granted, revoked, expired)
+- Associated purposes and fiduciaries
+- Audit log history
+- Timestamps for all actions
+
+**Features:**
+- Machine-readable formats (JSON, CSV)
+- Complete data package
+- Rate limited to 5 requests/minute
 
 ---
 
