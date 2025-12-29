@@ -9,8 +9,26 @@
  * @see https://eigensparse.com/docs/sdk
  */
 
-const VERSION = '1.0.0';
-const DEFAULT_BASE_URL = 'http://localhost:8000/api';
+const VERSION = '1.0.1';
+const DEFAULT_BASE_URL = 'https://eigensparse-api.onrender.com/api';
+
+/**
+ * HTML escape function to prevent XSS attacks
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for HTML
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  const htmlEscapes = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '/': '&#x2F;',
+  };
+  return String(str).replace(/[&<>"'/]/g, (char) => htmlEscapes[char]);
+}
 
 /**
  * Custom error class for SDK errors
@@ -326,6 +344,13 @@ class EigensparseClient {
   }
 
   _buildPurposeItem(purpose, colors) {
+    // Escape all user-provided data to prevent XSS
+    const safeName = escapeHtml(purpose.name);
+    const safeDescription = escapeHtml(purpose.description);
+    const safeLegalBasis = escapeHtml(purpose.legal_basis);
+    const safeUuid = escapeHtml(purpose.uuid);
+    const safeCategories = (purpose.data_categories || []).map(cat => escapeHtml(cat));
+
     return `
       <label style="
         display: flex;
@@ -340,14 +365,14 @@ class EigensparseClient {
         <input
           type="checkbox"
           name="eigensparse-purpose"
-          value="${purpose.uuid}"
+          value="${safeUuid}"
           ${purpose.is_mandatory ? 'checked disabled' : ''}
           style="margin-top: 3px; width: 18px; height: 18px; accent-color: ${colors.primary};"
         >
         <div style="flex: 1;">
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span style="font-weight: 500; color: ${colors.text}; font-size: 14px;">
-              ${purpose.name}
+              ${safeName}
             </span>
             ${purpose.is_mandatory ? `
               <span style="font-size: 10px; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-weight: 500;">
@@ -355,14 +380,14 @@ class EigensparseClient {
               </span>
             ` : ''}
             <span style="font-size: 10px; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px;">
-              ${purpose.legal_basis}
+              ${safeLegalBasis}
             </span>
           </div>
           <p style="color: ${colors.muted}; font-size: 13px; margin-top: 6px; line-height: 1.4;">
-            ${purpose.description}
+            ${safeDescription}
           </p>
           <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
-            ${purpose.data_categories.map(cat => `
+            ${safeCategories.map(cat => `
               <span style="font-size: 10px; background: ${colors.border}; color: ${colors.muted}; padding: 3px 8px; border-radius: 4px;">
                 ${cat}
               </span>

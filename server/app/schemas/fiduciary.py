@@ -39,8 +39,15 @@ class DataFiduciaryResponse(BaseModel):
 
 
 class DataFiduciaryWithKey(DataFiduciaryResponse):
-    """Schema for fiduciary response with API key"""
+    """Schema for fiduciary response with full API key (only for key generation/regeneration)"""
     api_key: str
+
+
+class DataFiduciaryWithMaskedKey(DataFiduciaryResponse):
+    """Schema for fiduciary response with masked API key (for /me endpoint)"""
+    api_key_prefix: str  # First 8 characters
+    api_key_suffix: str  # Last 4 characters
+    api_key_hint: str    # Display format: "es_abc1****xyz9"
 
 
 class AuthResponse(BaseModel):

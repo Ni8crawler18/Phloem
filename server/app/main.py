@@ -4,12 +4,19 @@ DPDP Act & GDPR Compliant Consent Management Platform
 
 Main application entry point.
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.database import init_db
 from app.routers import auth, fiduciary, purposes, consents, audit, sdk, dashboard
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI application
 app = FastAPI(
@@ -20,6 +27,10 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS middleware - Allow production and local origins
 cors_origins = [
     "https://eigensparse.com",
@@ -29,8 +40,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "Accept"],
 )
 
 # Include routers

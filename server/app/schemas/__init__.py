@@ -6,6 +6,7 @@ from app.schemas.fiduciary import (
     DataFiduciaryCreate,
     DataFiduciaryResponse,
     DataFiduciaryWithKey,
+    DataFiduciaryWithMaskedKey,
     FiduciaryRegister,
     AuthResponse,
     FiduciaryDashboardStats,
@@ -26,7 +27,7 @@ __all__ = [
     "UserCreate", "UserLogin", "UserResponse", "Token",
     # Fiduciary
     "DataFiduciaryCreate", "DataFiduciaryResponse", "DataFiduciaryWithKey",
-    "FiduciaryRegister", "AuthResponse", "FiduciaryDashboardStats",
+    "DataFiduciaryWithMaskedKey", "FiduciaryRegister", "AuthResponse", "FiduciaryDashboardStats",
     # Purpose
     "PurposeCreate", "PurposeResponse",
     # Consent

@@ -5,19 +5,20 @@ import { fiduciaryDashboard } from '../api';
 import { formatDateShort, parseJSON } from '../utils/formatters';
 import {
   Building2, Target, Users, CheckCircle, XCircle, Key, Plus, Trash2,
-  LogOut, Copy, RefreshCw, Eye, EyeOff, Clock, ChevronDown, ChevronUp
+  LogOut, Copy, RefreshCw, Clock, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 export default function FiduciaryDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [purposes, setPurposes] = useState([]);
   const [consents, setConsents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
+  const [newApiKey, setNewApiKey] = useState(null); // Temporarily store newly generated key
+  const [showNewKeyModal, setShowNewKeyModal] = useState(false);
 
   // Purpose form state
   const [showPurposeForm, setShowPurposeForm] = useState(false);
@@ -57,24 +58,34 @@ export default function FiduciaryDashboard() {
     navigate('/login');
   };
 
-  const copyApiKey = () => {
-    navigator.clipboard.writeText(user?.api_key || '');
-    setApiKeyCopied(true);
-    setTimeout(() => setApiKeyCopied(false), 2000);
+  const copyApiKey = (keyToCopy = null) => {
+    // Copy either the new key (if just regenerated) or show a message
+    const key = keyToCopy || newApiKey;
+    if (key) {
+      navigator.clipboard.writeText(key);
+      setApiKeyCopied(true);
+      setTimeout(() => setApiKeyCopied(false), 2000);
+    }
   };
 
   const regenerateApiKey = async () => {
-    if (!confirm('Are you sure? This will invalidate your current API key.')) return;
+    if (!confirm('Are you sure? This will invalidate your current API key. The new key will only be shown once.')) return;
     try {
       const res = await fiduciaryDashboard.regenerateApiKey();
-      // Update user object in localStorage with new API key
-      const updatedUser = { ...user, api_key: res.data.api_key };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      window.location.reload();
+      // Store the new key temporarily for one-time display
+      setNewApiKey(res.data.api_key);
+      setShowNewKeyModal(true);
+      // Refresh user data to get the new masked key
+      await refreshUser();
     } catch (error) {
-      console.error('API Key regeneration error:', error);
-      alert('Failed to regenerate API key: ' + (error.response?.data?.detail || error.message));
+      alert('Failed to regenerate API key. Please try again.');
     }
+  };
+
+  const closeNewKeyModal = () => {
+    setShowNewKeyModal(false);
+    // Clear the key from memory after modal is closed
+    setTimeout(() => setNewApiKey(null), 100);
   };
 
   const handleCreatePurpose = async (e) => {
@@ -671,6 +682,79 @@ export default function FiduciaryDashboard() {
               </p>
             </div>
 
+            {/* New API Key Modal */}
+            {showNewKeyModal && newApiKey && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+              }}>
+                <div className="card" style={{ width: '500px', padding: '32px' }}>
+                  <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Key size={20} />
+                    New API Key Generated
+                  </h2>
+                  <div style={{
+                    padding: '12px',
+                    background: 'var(--color-warning-bg)',
+                    border: '1px solid var(--color-warning)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '20px',
+                    fontSize: '0.875rem',
+                    color: '#92400e',
+                  }}>
+                    <strong>Important:</strong> This key will only be shown once. Copy it now and store it securely.
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '16px',
+                    background: 'var(--color-surface)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                    marginBottom: '20px',
+                  }}>
+                    <code style={{
+                      flex: 1,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.875rem',
+                      wordBreak: 'break-all',
+                    }}>
+                      {newApiKey}
+                    </code>
+                    <button
+                      onClick={() => copyApiKey(newApiKey)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: apiKeyCopied ? 'var(--color-success)' : 'var(--color-text-secondary)',
+                        padding: '8px',
+                      }}
+                      title="Copy"
+                    >
+                      <Copy size={18} />
+                    </button>
+                  </div>
+                  <button
+                    onClick={closeNewKeyModal}
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                  >
+                    I've Copied My Key
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
               <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Key size={18} />
@@ -691,35 +775,16 @@ export default function FiduciaryDashboard() {
                   fontSize: '0.9375rem',
                   wordBreak: 'break-all',
                 }}>
-                  {showApiKey ? user?.api_key : '••••••••••••••••••••••••••••••••'}
+                  {user?.api_key_hint || '••••••••••••••••'}
                 </code>
-                <button
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--color-text-secondary)',
-                    padding: '8px',
-                  }}
-                  title={showApiKey ? 'Hide' : 'Show'}
-                >
-                  {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-                <button
-                  onClick={copyApiKey}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: apiKeyCopied ? 'var(--color-success)' : 'var(--color-text-secondary)',
-                    padding: '8px',
-                  }}
-                  title="Copy"
-                >
-                  <Copy size={18} />
-                </button>
               </div>
+              <p style={{
+                fontSize: '0.8125rem',
+                color: 'var(--color-text-muted)',
+                marginTop: '12px',
+              }}>
+                For security, the full API key is only shown once when generated. If you need a new key, regenerate it below.
+              </p>
               <div style={{ marginTop: '16px' }}>
                 <button
                   onClick={regenerateApiKey}
@@ -745,8 +810,8 @@ export default function FiduciaryDashboard() {
               }}>
                 <pre style={{ margin: 0 }}>{`// Check consent before processing data
 const client = Eigensparse.createClient({
-  baseUrl: 'http://localhost:8000/api',
-  apiKey: '${user?.api_key?.substring(0, 16)}...'
+  baseUrl: 'https://eigensparse-api.onrender.com/api',
+  apiKey: 'YOUR_API_KEY' // Use your regenerated API key
 });
 
 const result = await client.checkConsent('user@example.com');

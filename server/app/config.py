@@ -3,7 +3,10 @@ Application Configuration
 Environment-based settings for Eigensparse
 """
 import os
+import secrets
+import warnings
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import List
 import json
 
@@ -13,9 +16,45 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/eigensparse"
 
     # Security
-    SECRET_KEY: str = "change-this-in-production-min-32-characters-long"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
+    @field_validator('SECRET_KEY', mode='before')
+    @classmethod
+    def validate_secret_key(cls, v):
+        """Validate and generate secure SECRET_KEY"""
+        # Check for weak/default keys
+        weak_keys = [
+            "change-this-in-production",
+            "your-secret-key",
+            "secret",
+            "changeme",
+            ""
+        ]
+
+        if not v or any(weak in v.lower() for weak in weak_keys):
+            # In production, this should fail; in dev, generate a random key
+            if os.getenv("ENV", "development").lower() == "production":
+                raise ValueError(
+                    "SECRET_KEY must be set to a strong random value in production. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+                )
+            else:
+                # Generate a secure key for development
+                generated_key = secrets.token_urlsafe(32)
+                warnings.warn(
+                    "Using auto-generated SECRET_KEY for development. "
+                    "Set a persistent SECRET_KEY in .env for production.",
+                    UserWarning
+                )
+                return generated_key
+
+        # Validate key length
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters long")
+
+        return v
     # CORS
     CORS_ORIGINS: str = '["http://localhost:5173", "http://localhost:3000"]'
 

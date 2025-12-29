@@ -6,6 +6,7 @@ Eigensparse is an open-source consent management platform built for compliance w
 
 ---
 
+
 ## What is Eigensparse?
 
 Eigensparse enables organizations to:

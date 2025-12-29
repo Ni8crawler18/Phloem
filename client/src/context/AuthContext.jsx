@@ -83,8 +83,25 @@ export function AuthProvider({ children }) {
     setRole(null);
   };
 
+  // Update user data (e.g., after API key regeneration)
+  const updateUser = (userData) => {
+    setUser(userData);
+  };
+
+  // Refresh user data from API
+  const refreshUser = async () => {
+    const savedRole = localStorage.getItem('role');
+    if (savedRole === 'fiduciary') {
+      const response = await auth.fiduciaryMe();
+      setUser(response.data);
+    } else {
+      const response = await auth.me();
+      setUser(response.data);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, role, loading, login, register, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
