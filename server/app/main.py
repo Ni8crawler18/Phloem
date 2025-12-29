@@ -12,9 +12,10 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
-from app.database import init_db
+from app.database import init_db, get_db
 from app.routers import auth, fiduciary, purposes, consents, audit, sdk, dashboard, webhooks
 from app.routers import settings as settings_router
+from sqlalchemy import text
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -61,6 +62,49 @@ app.include_router(settings_router.router)
 async def startup_event():
     """Initialize database on startup"""
     init_db()
+
+
+# ========== Health Check Endpoints ==========
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Basic health check - returns OK if API is running"""
+    return {
+        "status": "healthy",
+        "service": settings.APP_NAME,
+        "version": settings.APP_VERSION
+    }
+
+
+@app.get("/health/live", tags=["Health"])
+async def liveness_check():
+    """Liveness probe - checks if the application is running"""
+    return {"status": "alive"}
+
+
+@app.get("/health/ready", tags=["Health"])
+async def readiness_check():
+    """Readiness probe - checks if the application can serve requests"""
+    try:
+        # Check database connection
+        db = next(get_db())
+        db.execute(text("SELECT 1"))
+        db_status = "connected"
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "database": "disconnected",
+                "error": str(e)
+            }
+        )
+
+    return {
+        "status": "ready",
+        "database": db_status,
+        "service": settings.APP_NAME
+    }
 
 
 if __name__ == "__main__":
