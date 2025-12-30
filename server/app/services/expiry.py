@@ -1,7 +1,7 @@
 """
 Consent Expiry Service - Handle consent expiration and renewal
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,7 @@ def is_consent_expired(consent: Consent) -> bool:
         return False
     if consent.expires_at is None:
         return False
-    return datetime.utcnow() > consent.expires_at
+    return datetime.now(timezone.utc) > consent.expires_at
 
 
 def is_consent_expiring_soon(consent: Consent, days: int = EXPIRING_SOON_DAYS) -> bool:
@@ -26,15 +26,16 @@ def is_consent_expiring_soon(consent: Consent, days: int = EXPIRING_SOON_DAYS) -
         return False
     if consent.expires_at is None:
         return False
-    expiry_threshold = datetime.utcnow() + timedelta(days=days)
-    return consent.expires_at <= expiry_threshold and consent.expires_at > datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    expiry_threshold = now + timedelta(days=days)
+    return consent.expires_at <= expiry_threshold and consent.expires_at > now
 
 
 def get_days_until_expiry(consent: Consent) -> Optional[int]:
     """Get the number of days until consent expires"""
     if consent.expires_at is None:
         return None
-    delta = consent.expires_at - datetime.utcnow()
+    delta = consent.expires_at - datetime.now(timezone.utc)
     return max(0, delta.days)
 
 
@@ -56,14 +57,15 @@ def get_user_expiring_consents(
     days: int = EXPIRING_SOON_DAYS
 ) -> List[Consent]:
     """Get all consents expiring soon for a user"""
-    expiry_threshold = datetime.utcnow() + timedelta(days=days)
+    now = datetime.now(timezone.utc)
+    expiry_threshold = now + timedelta(days=days)
 
     return db.query(Consent).filter(
         Consent.user_id == user_id,
         Consent.status == ConsentStatus.GRANTED,
         Consent.expires_at != None,
         Consent.expires_at <= expiry_threshold,
-        Consent.expires_at > datetime.utcnow()
+        Consent.expires_at > now
     ).all()
 
 
@@ -81,14 +83,15 @@ def get_fiduciary_expiring_consents(
     days: int = EXPIRING_SOON_DAYS
 ) -> List[Consent]:
     """Get all consents expiring soon for a fiduciary"""
-    expiry_threshold = datetime.utcnow() + timedelta(days=days)
+    now = datetime.now(timezone.utc)
+    expiry_threshold = now + timedelta(days=days)
 
     return db.query(Consent).filter(
         Consent.fiduciary_id == fiduciary_id,
         Consent.status == ConsentStatus.GRANTED,
         Consent.expires_at != None,
         Consent.expires_at <= expiry_threshold,
-        Consent.expires_at > datetime.utcnow()
+        Consent.expires_at > now
     ).all()
 
 
@@ -102,7 +105,7 @@ def renew_consent(db: Session, consent: Consent, purpose: Purpose) -> Consent:
         consent.status = ConsentStatus.GRANTED
 
     # Extend expiry from now (not from previous expiry)
-    consent.expires_at = datetime.utcnow() + timedelta(days=purpose.retention_period_days)
+    consent.expires_at = datetime.now(timezone.utc) + timedelta(days=purpose.retention_period_days)
 
     db.commit()
     db.refresh(consent)
