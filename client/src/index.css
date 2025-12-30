@@ -1,7 +1,7 @@
 /* Eigensparse - Enterprise Design System */
 /* Theme: White background, Blue accents, Black text */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
   /* Primary Colors */
@@ -30,8 +30,8 @@
   --color-error: #EF4444;
   --color-error-bg: #FEF2F2;
 
-  /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Typography - JetBrains Mono throughout */
+  --font-sans: 'JetBrains Mono', monospace;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Spacing */
