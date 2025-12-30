@@ -8,6 +8,10 @@ export const auth = {
   register: (data) => client.post('/auth/register', data),
   login: (data) => client.post('/auth/login', data),
   me: () => client.get('/auth/me'),
+  // Get user with explicit token (bypasses localStorage interceptor)
+  meWithToken: (token) => client.get('/auth/me', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
 
   // User email verification
   verifyEmail: (token) => client.post('/auth/verify-email', { token }),
@@ -21,6 +25,10 @@ export const auth = {
   fiduciaryRegister: (data) => client.post('/auth/fiduciary/register', data),
   fiduciaryLogin: (data) => client.post('/auth/fiduciary/login', data),
   fiduciaryMe: () => client.get('/auth/fiduciary/me'),
+  // Get fiduciary with explicit token (bypasses localStorage interceptor)
+  fiduciaryMeWithToken: (token) => client.get('/auth/fiduciary/me', {
+    headers: { Authorization: `Bearer ${token}` }
+  }),
 
   // Fiduciary email verification
   fiduciaryVerifyEmail: (token) => client.post('/auth/fiduciary/verify-email', { token }),

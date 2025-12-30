@@ -40,10 +40,10 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    fiduciary_id = Column(Integer, ForeignKey("data_fiduciaries.id"), nullable=True)
-    action = Column(SQLEnum(AuditAction), nullable=False)
+    uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    fiduciary_id = Column(Integer, ForeignKey("data_fiduciaries.id"), nullable=True, index=True)
+    action = Column(SQLEnum(AuditAction), nullable=False, index=True)
     resource_type = Column(String(50), nullable=False)
     resource_id = Column(String(36), nullable=True)
     details = Column(Text, nullable=True)  # JSON with action details

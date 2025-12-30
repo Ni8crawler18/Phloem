@@ -26,10 +26,10 @@ from app.constants import (
 )
 from app.models import (
     DataFiduciary, Purpose, Consent, User,
-    ConsentStatus, AuditAction
+    ConsentStatus, AuditAction, AuditLog
 )
 from app.schemas import (
-    FiduciaryDashboardStats, PurposeCreate, PurposeResponse
+    FiduciaryDashboardStats, PurposeCreate, PurposeResponse, AuditLogResponse
 )
 from app.services.auth import generate_api_key
 from app.services.audit import create_audit_log
@@ -127,17 +127,11 @@ def get_fiduciary_stats(
 
     fiduciary_id = current_fiduciary.id
 
-    # Purpose counts (single query with conditional aggregation)
-    purpose_stats = db.query(
-        func.count(Purpose.id).label('total'),
-        func.sum(func.cast(Purpose.is_active, db.bind.dialect.type_compiler.process(
-            Purpose.is_active.type
-        ) if hasattr(Purpose.is_active.type, 'impl') else 1)).label('active')
-    ).filter(
+    # Purpose counts
+    total_purposes = db.query(Purpose).filter(
         Purpose.fiduciary_id == fiduciary_id
-    ).first()
+    ).count()
 
-    total_purposes = purpose_stats.total or 0
     active_purposes = db.query(Purpose).filter(
         Purpose.fiduciary_id == fiduciary_id,
         Purpose.is_active == True
@@ -484,3 +478,43 @@ def regenerate_fiduciary_api_key(
     )
 
     return {"api_key": current_fiduciary.api_key}
+
+
+# =============================================================================
+# AUDIT LOGS
+# =============================================================================
+
+@router.get("/audit-logs", response_model=List[AuditLogResponse])
+@limiter.limit("60/minute")
+def get_fiduciary_audit_logs(
+    request: Request,
+    action: Optional[str] = None,
+    limit: int = DEFAULT_PAGE_LIMIT,
+    offset: int = DEFAULT_PAGE_OFFSET,
+    current_fiduciary: DataFiduciary = Depends(get_current_fiduciary),
+    db: Session = Depends(get_db)
+):
+    """
+    Get audit logs for the current fiduciary.
+
+    Returns audit logs for all actions performed by or related to
+    this fiduciary, including purpose creation, consent events, etc.
+
+    Args:
+        action: Optional filter by action type.
+        limit: Maximum number of results.
+        offset: Number of results to skip.
+        current_fiduciary: Authenticated fiduciary.
+        db: Database session.
+
+    Returns:
+        List of audit log entries.
+    """
+    query = db.query(AuditLog).filter(AuditLog.fiduciary_id == current_fiduciary.id)
+
+    if action:
+        query = query.filter(AuditLog.action == AuditAction(action))
+
+    return query.order_by(
+        AuditLog.created_at.desc()
+    ).offset(offset).limit(min(limit, 500)).all()

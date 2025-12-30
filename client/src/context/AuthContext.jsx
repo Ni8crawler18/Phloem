@@ -13,12 +13,12 @@ const STORAGE_KEYS = {
 };
 
 export function AuthProvider({ children }) {
-  // Separate state for user and fiduciary
+  // Separate state for user and fiduciary sessions
   const [userSession, setUserSession] = useState(null);
   const [fiduciarySession, setFiduciarySession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // For backward compatibility
+  // Current active session (for backward compatibility)
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
 
@@ -55,11 +55,12 @@ export function AuthProvider({ children }) {
     return false;
   }, []);
 
+  // Check auth on mount
   useEffect(() => {
     checkAuth();
   }, []);
 
-  // Session timeout checker - runs every minute for both sessions
+  // Session timeout checker - runs every minute
   useEffect(() => {
     const interval = setInterval(() => {
       checkSessionTimeout('user');
@@ -74,7 +75,6 @@ export function AuthProvider({ children }) {
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
 
     const handleActivity = () => {
-      // Update activity for the current active role based on URL
       const path = window.location.pathname;
       if (path.includes('fiduciary')) {
         updateLastActivity('fiduciary');
@@ -95,20 +95,21 @@ export function AuthProvider({ children }) {
   }, [updateLastActivity]);
 
   const checkAuth = async () => {
-    // Check both sessions
+    // Check session timeouts first
     checkSessionTimeout('user');
     checkSessionTimeout('fiduciary');
 
     const userToken = localStorage.getItem(STORAGE_KEYS.user.token);
     const fiduciaryToken = localStorage.getItem(STORAGE_KEYS.fiduciary.token);
 
-    // Check user session
+    let loadedUserSession = null;
+    let loadedFiduciarySession = null;
+
+    // Check user session (use token directly in header, not localStorage)
     if (userToken) {
       try {
-        // Temporarily set token for API call
-        localStorage.setItem('token', userToken);
-        localStorage.setItem('role', 'user');
-        const response = await auth.me();
+        const response = await auth.meWithToken(userToken);
+        loadedUserSession = response.data;
         setUserSession(response.data);
         updateLastActivity('user');
       } catch (error) {
@@ -120,10 +121,8 @@ export function AuthProvider({ children }) {
     // Check fiduciary session
     if (fiduciaryToken) {
       try {
-        // Temporarily set token for API call
-        localStorage.setItem('token', fiduciaryToken);
-        localStorage.setItem('role', 'fiduciary');
-        const response = await auth.fiduciaryMe();
+        const response = await auth.fiduciaryMeWithToken(fiduciaryToken);
+        loadedFiduciarySession = response.data;
         setFiduciarySession(response.data);
         updateLastActivity('fiduciary');
       } catch (error) {
@@ -132,18 +131,24 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // Set active user/role based on current path
+    // Set active session based on current path
     const path = window.location.pathname;
-    if (path.includes('fiduciary') && fiduciaryToken) {
+    if (path.includes('fiduciary') && loadedFiduciarySession) {
       localStorage.setItem('token', fiduciaryToken);
       localStorage.setItem('role', 'fiduciary');
-      setUser(fiduciarySession);
+      setUser(loadedFiduciarySession);
       setRole('fiduciary');
-    } else if (userToken) {
+    } else if (loadedUserSession) {
       localStorage.setItem('token', userToken);
       localStorage.setItem('role', 'user');
-      setUser(userSession);
+      setUser(loadedUserSession);
       setRole('user');
+    } else if (loadedFiduciarySession) {
+      // Fallback to fiduciary if no user session
+      localStorage.setItem('token', fiduciaryToken);
+      localStorage.setItem('role', 'fiduciary');
+      setUser(loadedFiduciarySession);
+      setRole('fiduciary');
     }
 
     setLoading(false);
@@ -191,14 +196,11 @@ export function AuthProvider({ children }) {
     } else {
       response = await auth.register(data);
     }
-    // Both user and fiduciary registration now return a message
-    // and require email verification before login
     return response.data;
   };
 
   const logout = (logoutRole = null) => {
-    // If no role specified, logout from current active role
-    const targetRole = logoutRole || role;
+    const targetRole = logoutRole || role || localStorage.getItem('role');
 
     if (targetRole === 'fiduciary') {
       localStorage.removeItem(STORAGE_KEYS.fiduciary.token);
@@ -208,6 +210,14 @@ export function AuthProvider({ children }) {
       localStorage.removeItem(STORAGE_KEYS.user.token);
       localStorage.removeItem(STORAGE_KEYS.user.lastActivity);
       setUserSession(null);
+    } else {
+      // If role unknown, clear both to be safe
+      localStorage.removeItem(STORAGE_KEYS.user.token);
+      localStorage.removeItem(STORAGE_KEYS.user.lastActivity);
+      localStorage.removeItem(STORAGE_KEYS.fiduciary.token);
+      localStorage.removeItem(STORAGE_KEYS.fiduciary.lastActivity);
+      setUserSession(null);
+      setFiduciarySession(null);
     }
 
     // Clear active session
@@ -217,7 +227,6 @@ export function AuthProvider({ children }) {
     setRole(null);
   };
 
-  // Logout from all sessions
   const logoutAll = () => {
     localStorage.removeItem(STORAGE_KEYS.user.token);
     localStorage.removeItem(STORAGE_KEYS.user.lastActivity);
@@ -231,7 +240,6 @@ export function AuthProvider({ children }) {
     setRole(null);
   };
 
-  // Update user data (e.g., after API key regeneration)
   const updateUser = (userData) => {
     setUser(userData);
     if (role === 'fiduciary') {
@@ -241,7 +249,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Refresh user data from API
   const refreshUser = async () => {
     const savedRole = localStorage.getItem('role');
     if (savedRole === 'fiduciary') {
@@ -255,30 +262,26 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Switch active session (when navigating between dashboards)
   const switchSession = (targetRole) => {
     const keys = STORAGE_KEYS[targetRole];
     const token = localStorage.getItem(keys.token);
+    const sessionData = targetRole === 'fiduciary' ? fiduciarySession : userSession;
 
-    if (token) {
+    if (token && sessionData) {
       localStorage.setItem('token', token);
       localStorage.setItem('role', targetRole);
       setRole(targetRole);
-
-      if (targetRole === 'fiduciary') {
-        setUser(fiduciarySession);
-      } else {
-        setUser(userSession);
-      }
+      setUser(sessionData);
       return true;
     }
     return false;
   };
 
-  // Check if a specific session is active
   const hasSession = (sessionRole) => {
     const keys = STORAGE_KEYS[sessionRole];
-    return !!localStorage.getItem(keys.token);
+    const hasToken = !!localStorage.getItem(keys.token);
+    const hasData = sessionRole === 'fiduciary' ? !!fiduciarySession : !!userSession;
+    return hasToken && hasData;
   };
 
   return (

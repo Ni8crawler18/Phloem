@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { consents, fiduciaries, purposes, dashboard, auditLogs, settings } from '../api';
 import { formatDate, parseJSON } from '../utils/formatters';
@@ -12,6 +12,7 @@ import {
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('consents');
   const [myConsents, setMyConsents] = useState([]);
   const [availableFiduciaries, setAvailableFiduciaries] = useState([]);
@@ -395,7 +396,7 @@ export default function Dashboard() {
             </div>
           </div>
           <button
-            onClick={logout}
+            onClick={() => { logout(); navigate('/login'); }}
             style={{
               width: '100%',
               display: 'flex',

@@ -17,8 +17,8 @@ class Purpose(Base):
     __tablename__ = "purposes"
 
     id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    fiduciary_id = Column(Integer, ForeignKey("data_fiduciaries.id"), nullable=False)
+    uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()))
+    fiduciary_id = Column(Integer, ForeignKey("data_fiduciaries.id"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     data_categories = Column(Text, nullable=False)  # JSON array of data types

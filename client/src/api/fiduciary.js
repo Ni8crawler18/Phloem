@@ -19,6 +19,7 @@ export const fiduciaryDashboard = {
   deletePurpose: (uuid) => client.delete(`/fiduciary/purposes/${uuid}`),
   consents: (params) => client.get('/fiduciary/consents', { params }),
   regenerateApiKey: () => client.post('/fiduciary/api-key/regenerate'),
+  auditLogs: (params) => client.get('/fiduciary/audit-logs', { params }),
 };
 
 export default { fiduciaries, fiduciaryDashboard };

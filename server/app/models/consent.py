@@ -18,11 +18,11 @@ class Consent(Base):
     __tablename__ = "consents"
 
     id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(String(36), unique=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    fiduciary_id = Column(Integer, ForeignKey("data_fiduciaries.id"), nullable=False)
-    purpose_id = Column(Integer, ForeignKey("purposes.id"), nullable=False)
-    status = Column(SQLEnum(ConsentStatus), default=ConsentStatus.GRANTED)
+    uuid = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    fiduciary_id = Column(Integer, ForeignKey("data_fiduciaries.id"), nullable=False, index=True)
+    purpose_id = Column(Integer, ForeignKey("purposes.id"), nullable=False, index=True)
+    status = Column(SQLEnum(ConsentStatus), default=ConsentStatus.GRANTED, index=True)
     granted_at = Column(DateTime(timezone=True), server_default=func.now())
     revoked_at = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
