@@ -15,7 +15,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import inch
 
-from app.database import get_db
+from app.database import get_db, safe_commit
 from app.models import (
     User, DataFiduciary, Purpose, Consent, ConsentReceipt,
     ConsentStatus, AuditAction
@@ -81,7 +81,7 @@ def grant_consent(
         user_agent=request.headers.get("user-agent")
     )
     db.add(consent)
-    db.commit()
+    safe_commit(db, "grant consent")
     db.refresh(consent)
 
     # Generate receipt
@@ -150,7 +150,7 @@ def revoke_consent(
 
     consent.status = ConsentStatus.REVOKED
     consent.revoked_at = datetime.utcnow()
-    db.commit()
+    safe_commit(db, "revoke consent")
     db.refresh(consent)
 
     create_audit_log(

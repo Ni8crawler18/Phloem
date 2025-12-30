@@ -3,10 +3,29 @@ Consent Service
 Business logic for consent management
 """
 import json
+import hmac
 import hashlib
 from sqlalchemy.orm import Session
 
+from app.config import settings
+from app.database import safe_commit
 from app.models import Consent, ConsentReceipt, User, Purpose, DataFiduciary
+
+
+def generate_consent_signature(data: dict, fiduciary_id: int) -> str:
+    """
+    Generate HMAC-SHA256 signature for consent data.
+    Uses app SECRET_KEY combined with fiduciary ID for tamper-proof signatures.
+    """
+    signing_key = f"{settings.SECRET_KEY}:{fiduciary_id}".encode()
+    message = json.dumps(data, sort_keys=True).encode()
+    return hmac.new(signing_key, message, hashlib.sha256).hexdigest()
+
+
+def verify_consent_signature(data: dict, signature: str, fiduciary_id: int) -> bool:
+    """Verify HMAC signature of consent receipt"""
+    expected = generate_consent_signature(data, fiduciary_id)
+    return hmac.compare_digest(signature, expected)
 
 
 def generate_consent_receipt(
@@ -17,7 +36,7 @@ def generate_consent_receipt(
     fiduciary: DataFiduciary
 ) -> ConsentReceipt:
     """
-    Generate a consent receipt with SHA-256 signature.
+    Generate a consent receipt with HMAC-SHA256 signature.
     DPDP Section 6(3) Transparency Requirement.
     """
     receipt_data = {
@@ -42,10 +61,8 @@ def generate_consent_receipt(
         "version": consent.consent_version
     }
 
-    # Create SHA-256 signature
-    signature = hashlib.sha256(
-        json.dumps(receipt_data, sort_keys=True).encode()
-    ).hexdigest()
+    # Create HMAC-SHA256 signature (tamper-proof)
+    signature = generate_consent_signature(receipt_data, fiduciary.id)
 
     receipt = ConsentReceipt(
         consent_id=consent.id,
@@ -53,7 +70,7 @@ def generate_consent_receipt(
         signature=signature
     )
     db.add(receipt)
-    db.commit()
+    safe_commit(db, "generate consent receipt")
     db.refresh(receipt)
     return receipt
 
