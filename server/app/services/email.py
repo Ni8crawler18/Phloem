@@ -19,22 +19,21 @@ RESEND_API_URL = "https://api.resend.com/emails"
 class EmailService:
     """Email service with Resend API and SMTP fallback"""
 
-    def __init__(self):
-        # Resend settings
-        self.resend_api_key = settings.RESEND_API_KEY
-        self.resend_from_email = settings.RESEND_FROM_EMAIL
-        self.resend_from_name = settings.RESEND_FROM_NAME
+    @property
+    def resend_api_key(self) -> str:
+        return settings.RESEND_API_KEY
 
-        # SMTP settings (fallback)
-        self.smtp_host = settings.SMTP_HOST
-        self.smtp_port = settings.SMTP_PORT
-        self.smtp_user = settings.SMTP_USER
-        self.smtp_password = settings.SMTP_PASSWORD
-        self.smtp_from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
-        self.smtp_from_name = settings.SMTP_FROM_NAME
-        self.use_tls = settings.SMTP_USE_TLS
+    @property
+    def resend_from_email(self) -> str:
+        return settings.RESEND_FROM_EMAIL
 
-        self.frontend_url = settings.FRONTEND_URL
+    @property
+    def resend_from_name(self) -> str:
+        return settings.RESEND_FROM_NAME
+
+    @property
+    def frontend_url(self) -> str:
+        return settings.FRONTEND_URL
 
     @property
     def is_configured(self) -> bool:
