@@ -162,29 +162,27 @@ export function AuthProvider({ children }) {
       response = await auth.login({ email, password });
     }
 
-    const actualRole = response.data.role || loginRole;
+    const { access_token, role: actualRole, name, email: userEmail } = response.data;
     const keys = STORAGE_KEYS[actualRole];
 
     // Store in role-specific storage
-    localStorage.setItem(keys.token, response.data.access_token);
+    localStorage.setItem(keys.token, access_token);
     localStorage.setItem(keys.lastActivity, Date.now().toString());
 
     // Also set as active token
-    localStorage.setItem('token', response.data.access_token);
+    localStorage.setItem('token', access_token);
     localStorage.setItem('role', actualRole);
 
     setRole(actualRole);
 
-    // Fetch user/fiduciary details
+    // Use data from login response (no extra API call needed)
+    const userData = { name, email: userEmail };
     if (actualRole === 'fiduciary') {
-      const meResponse = await auth.fiduciaryMe();
-      setFiduciarySession(meResponse.data);
-      setUser(meResponse.data);
+      setFiduciarySession(userData);
     } else {
-      const meResponse = await auth.me();
-      setUserSession(meResponse.data);
-      setUser(meResponse.data);
+      setUserSession(userData);
     }
+    setUser(userData);
 
     return response.data;
   };

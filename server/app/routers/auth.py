@@ -89,10 +89,10 @@ async def register_user(
     return MessageResponse(message="Registration successful. Please check your email to verify your account.")
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=AuthResponse)
 @limiter.limit("10/minute")
 def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db)):
-    """Login and get access token"""
+    """Login and get access token with user info"""
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not verify_password(user_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -105,7 +105,13 @@ def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db))
         )
 
     token = create_access_token({"sub": str(user.id)})
-    return {"access_token": token, "token_type": "bearer"}
+    return AuthResponse(
+        access_token=token,
+        token_type="bearer",
+        role="user",
+        name=user.name,
+        email=user.email
+    )
 
 
 @router.get("/me", response_model=UserResponse)
