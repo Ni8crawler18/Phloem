@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Terminal, Check } from 'lucide-react';
+import { ArrowRight, Terminal, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Landing() {
   const stats = [
@@ -222,10 +222,10 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section - Horizontal Slider */}
       <section id="features" className="section-lg" style={{ background: 'var(--color-surface)' }}>
         <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
             <span className="code-label" style={{ marginBottom: '16px', display: 'block' }}>
               API Reference
             </span>
@@ -242,101 +242,213 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="auto-grid">
-            {features.map((feature, i) => (
-              <div key={i} className="card" style={{
-                padding: '32px',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                cursor: 'default',
+          {/* Slider Container */}
+          <div style={{ position: 'relative' }}>
+            {/* Navigation Arrows */}
+            <button
+              onClick={() => {
+                const slider = document.getElementById('features-slider');
+                slider.scrollBy({ left: -340, behavior: 'smooth' });
+              }}
+              style={{
+                position: 'absolute',
+                left: '-20px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'var(--color-background)',
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 10,
+                boxShadow: 'var(--shadow-md)',
+                transition: 'all 0.2s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+                e.currentTarget.style.background = 'var(--color-primary)';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '16px',
+                e.currentTarget.style.background = 'var(--color-background)';
+                e.currentTarget.style.color = 'var(--color-text)';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            <button
+              onClick={() => {
+                const slider = document.getElementById('features-slider');
+                slider.scrollBy({ left: 340, behavior: 'smooth' });
+              }}
+              style={{
+                position: 'absolute',
+                right: '-20px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'var(--color-background)',
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 10,
+                boxShadow: 'var(--shadow-md)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-primary)';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-background)';
+                e.currentTarget.style.color = 'var(--color-text)';
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            >
+              <ChevronRight size={20} />
+            </button>
+
+            {/* Scrollable Cards */}
+            <div
+              id="features-slider"
+              style={{
+                display: 'flex',
+                gap: '24px',
+                overflowX: 'auto',
+                scrollSnapType: 'x mandatory',
+                scrollBehavior: 'smooth',
+                padding: '8px 4px',
+                margin: '0 -4px',
+                msOverflowStyle: 'none',
+                scrollbarWidth: 'none',
+              }}
+            >
+              {features.map((feature, i) => (
+                <div key={i} className="card" style={{
+                  padding: '32px',
+                  minWidth: '320px',
+                  maxWidth: '320px',
+                  flexShrink: 0,
+                  scrollSnapAlign: 'start',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                  cursor: 'default',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)',
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '16px',
+                  }}>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.9375rem',
+                      color: 'var(--color-primary)',
+                      fontWeight: '500',
+                    }}>
+                      {feature.title}
+                    </span>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      background: 'var(--color-primary)',
+                      transform: 'rotate(45deg)',
+                    }} />
+                  </div>
+
+                  <p style={{
+                    color: 'var(--color-text-secondary)',
                     fontSize: '0.9375rem',
-                    color: 'var(--color-primary)',
-                    fontWeight: '500',
+                    marginBottom: '24px',
+                    lineHeight: '1.6',
                   }}>
-                    {feature.title}
-                  </span>
-                  <div style={{
-                    width: '8px',
-                    height: '8px',
-                    background: 'var(--color-primary)',
-                    transform: 'rotate(45deg)',
-                  }} />
-                </div>
+                    {feature.description}
+                  </p>
 
-                <p style={{
-                  color: 'var(--color-text-secondary)',
-                  fontSize: '0.9375rem',
-                  marginBottom: '24px',
-                  lineHeight: '1.6',
-                }}>
-                  {feature.description}
-                </p>
+                  <div style={{ marginBottom: '12px' }}>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-text-muted)',
+                    }}>
+                      // inputs
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                      {feature.inputs.map((input, j) => (
+                        <span key={j} style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.8125rem',
+                          padding: '4px 10px',
+                          background: 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--color-text-secondary)',
+                        }}>
+                          {input}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-                <div style={{ marginBottom: '12px' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.75rem',
-                    color: 'var(--color-text-muted)',
-                  }}>
-                    // inputs
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-                    {feature.inputs.map((input, j) => (
-                      <span key={j} style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.8125rem',
-                        padding: '4px 10px',
-                        background: 'var(--color-surface)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-sm)',
-                        color: 'var(--color-text-secondary)',
-                      }}>
-                        {input}
-                      </span>
-                    ))}
+                  <div>
+                    <span style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-text-muted)',
+                    }}>
+                      // output
+                    </span>
+                    <div style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.8125rem',
+                      padding: '4px 10px',
+                      background: 'var(--color-primary-subtle)',
+                      border: '1px solid var(--color-primary)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--color-primary)',
+                      marginTop: '8px',
+                      display: 'inline-block',
+                    }}>
+                      {feature.output}
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                <div>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.75rem',
-                    color: 'var(--color-text-muted)',
-                  }}>
-                    // output
-                  </span>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.8125rem',
-                    padding: '4px 10px',
-                    background: 'var(--color-primary-subtle)',
-                    border: '1px solid var(--color-primary)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--color-primary)',
-                    marginTop: '8px',
-                    display: 'inline-block',
-                  }}>
-                    {feature.output}
-                  </div>
-                </div>
-              </div>
-            ))}
+            {/* Scroll Indicator */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '8px',
+              marginTop: '24px',
+            }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.75rem',
+                color: 'var(--color-text-muted)',
+              }}>
+                ← Drag or use arrows to explore →
+              </span>
+            </div>
           </div>
         </div>
       </section>
