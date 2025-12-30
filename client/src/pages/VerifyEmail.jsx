@@ -29,8 +29,10 @@ export default function VerifyEmail() {
         const response = await verifyFn(token);
         setStatus('success');
         setMessage(response.data.message);
-        // Redirect to login after 3 seconds
-        setTimeout(() => navigate('/login'), 3000);
+        // Redirect to appropriate dashboard based on account type
+        const accountType = response.data.account_type;
+        const redirectPath = accountType === 'fiduciary' ? '/fiduciary-dashboard' : '/dashboard';
+        setTimeout(() => navigate(redirectPath), 3000);
       } catch (err) {
         setStatus('error');
         setMessage(err.response?.data?.detail || 'Verification failed. The link may be invalid or expired.');
@@ -133,14 +135,14 @@ export default function VerifyEmail() {
                 {message}
               </p>
               <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                Redirecting to login in 3 seconds...
+                Redirecting to dashboard in 3 seconds...
               </p>
               <Link
-                to="/login"
+                to={type === 'fiduciary' ? '/fiduciary-dashboard' : '/dashboard'}
                 className="btn btn-primary"
                 style={{ marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                Go to Login <ArrowRight size={18} />
+                Go to Dashboard <ArrowRight size={18} />
               </Link>
             </>
           )}

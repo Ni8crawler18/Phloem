@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
 
     # Token Expiration Settings
-    VERIFICATION_EXPIRE_HOURS: int = 24
+    VERIFICATION_EXPIRE_MINUTES: int = 15
     RESET_EXPIRE_MINUTES: int = 30
 
     @property

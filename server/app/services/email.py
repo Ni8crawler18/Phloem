@@ -234,7 +234,7 @@ class EmailService:
                 <p>Or copy and paste this link into your browser:</p>
                 <p style="word-break: break-all; color: #666; font-size: 14px;">{verify_url}</p>
                 <div class="warning">
-                    This link will expire in {settings.VERIFICATION_EXPIRE_HOURS} hours.
+                    This link will expire in {settings.VERIFICATION_EXPIRE_MINUTES} minutes.
                 </div>
             </div>
         """

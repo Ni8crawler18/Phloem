@@ -58,7 +58,7 @@ async def register_user(
 
     # Generate verification token
     verification_token = generate_verification_token()
-    token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+    token_expires = datetime.now(timezone.utc) + timedelta(minutes=settings.VERIFICATION_EXPIRE_MINUTES)
 
     user = User(
         email=user_data.email,
@@ -116,7 +116,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 # ========== User Email Verification ==========
 
-@router.post("/verify-email", response_model=MessageResponse)
+@router.post("/verify-email")
 @limiter.limit("10/minute")
 async def verify_email(
     request: Request,
@@ -134,26 +134,27 @@ async def verify_email(
     if user.verification_token_expires and user.verification_token_expires < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Verification token has expired. Please request a new one.")
 
-    # Mark as verified
+    # Mark as verified (keep token valid for reuse within validity period)
+    was_already_verified = user.email_verified
     user.email_verified = True
-    user.verification_token = None
-    user.verification_token_expires = None
     db.commit()
 
-    create_audit_log(
-        db, AuditAction.EMAIL_VERIFIED, "user", user.uuid,
-        user_id=user.id,
-        details={"email": user.email},
-        ip_address=request.client.host if request.client else None
-    )
+    # Only log and send welcome email on first verification
+    if not was_already_verified:
+        create_audit_log(
+            db, AuditAction.EMAIL_VERIFIED, "user", user.uuid,
+            user_id=user.id,
+            details={"email": user.email},
+            ip_address=request.client.host if request.client else None
+        )
 
-    # Send welcome email
-    background_tasks.add_task(
-        email_service.send_welcome_email,
-        user.email, user.name, "user"
-    )
+        # Send welcome email
+        background_tasks.add_task(
+            email_service.send_welcome_email,
+            user.email, user.name, "user"
+        )
 
-    return MessageResponse(message="Email verified successfully. You can now login.")
+    return {"message": "Email verified successfully.", "account_type": "user"}
 
 
 @router.post("/resend-verification", response_model=MessageResponse)
@@ -171,7 +172,7 @@ async def resend_verification(
     if user and not user.email_verified:
         # Generate new token
         verification_token = generate_verification_token()
-        token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+        token_expires = datetime.now(timezone.utc) + timedelta(minutes=settings.VERIFICATION_EXPIRE_MINUTES)
 
         user.verification_token = verification_token
         user.verification_token_expires = token_expires
@@ -275,7 +276,7 @@ async def register_fiduciary(
 
     # Generate verification token
     verification_token = generate_verification_token()
-    token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+    token_expires = datetime.now(timezone.utc) + timedelta(minutes=settings.VERIFICATION_EXPIRE_MINUTES)
 
     fiduciary = DataFiduciary(
         name=data.name,
@@ -367,7 +368,7 @@ def get_fiduciary_me(
 
 # ========== Fiduciary Email Verification ==========
 
-@router.post("/fiduciary/verify-email", response_model=MessageResponse)
+@router.post("/fiduciary/verify-email")
 @limiter.limit("10/minute")
 async def verify_fiduciary_email(
     request: Request,
@@ -385,26 +386,27 @@ async def verify_fiduciary_email(
     if fiduciary.verification_token_expires and fiduciary.verification_token_expires < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Verification token has expired. Please request a new one.")
 
-    # Mark as verified
+    # Mark as verified (keep token valid for reuse within validity period)
+    was_already_verified = fiduciary.email_verified
     fiduciary.email_verified = True
-    fiduciary.verification_token = None
-    fiduciary.verification_token_expires = None
     db.commit()
 
-    create_audit_log(
-        db, AuditAction.EMAIL_VERIFIED, "fiduciary", fiduciary.uuid,
-        fiduciary_id=fiduciary.id,
-        details={"email": fiduciary.contact_email},
-        ip_address=request.client.host if request.client else None
-    )
+    # Only log and send welcome email on first verification
+    if not was_already_verified:
+        create_audit_log(
+            db, AuditAction.EMAIL_VERIFIED, "fiduciary", fiduciary.uuid,
+            fiduciary_id=fiduciary.id,
+            details={"email": fiduciary.contact_email},
+            ip_address=request.client.host if request.client else None
+        )
 
-    # Send welcome email
-    background_tasks.add_task(
-        email_service.send_welcome_email,
-        fiduciary.contact_email, fiduciary.name, "fiduciary"
-    )
+        # Send welcome email
+        background_tasks.add_task(
+            email_service.send_welcome_email,
+            fiduciary.contact_email, fiduciary.name, "fiduciary"
+        )
 
-    return MessageResponse(message="Email verified successfully. You can now login.")
+    return {"message": "Email verified successfully.", "account_type": "fiduciary"}
 
 
 @router.post("/fiduciary/resend-verification", response_model=MessageResponse)
@@ -422,7 +424,7 @@ async def resend_fiduciary_verification(
     if fiduciary and not fiduciary.email_verified:
         # Generate new token
         verification_token = generate_verification_token()
-        token_expires = datetime.now(timezone.utc) + timedelta(hours=settings.VERIFICATION_EXPIRE_HOURS)
+        token_expires = datetime.now(timezone.utc) + timedelta(minutes=settings.VERIFICATION_EXPIRE_MINUTES)
 
         fiduciary.verification_token = verification_token
         fiduciary.verification_token_expires = token_expires
