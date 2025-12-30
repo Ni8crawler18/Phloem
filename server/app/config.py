@@ -28,12 +28,12 @@ class Settings(BaseSettings):
         weak_keys = [
             "change-this-in-production",
             "your-secret-key",
-            "secret",
             "changeme",
-            ""
         ]
 
-        if not v or any(weak in v.lower() for weak in weak_keys):
+        is_weak = not v or v.lower() in ["secret", ""] or any(weak in v.lower() for weak in weak_keys)
+
+        if is_weak:
             # In production, this should fail; in dev, generate a random key
             if os.getenv("ENV", "development").lower() == "production":
                 raise ValueError(
