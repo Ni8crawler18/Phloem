@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [settingsError, setSettingsError] = useState('');
   const [settingsSuccess, setSettingsSuccess] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [exporting, setExporting] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -215,8 +216,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  const [exporting, setExporting] = useState(null);
 
   const handleExportJson = async () => {
     setExporting('json');
@@ -426,7 +425,7 @@ export default function Dashboard() {
             consent_dashboard
           </span>
           <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>
-            {tabs.find(t => t.id === activeTab)?.label}
+            {mainTabs.find(t => t.id === activeTab)?.label || 'Settings'}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)' }}>
             Manage your data sharing preferences and view consent history.
