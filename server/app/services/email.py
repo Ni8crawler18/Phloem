@@ -1,8 +1,10 @@
 """
-Email Service - Modular SMTP-based email sending
-Works with any SMTP provider (Gmail, AWS SES, SendGrid, etc.)
+Email Service - Supports Resend API (recommended) with SMTP fallback
+Resend: Modern transactional email API (https://resend.com)
+SMTP: Legacy support for Gmail, AWS SES, SendGrid, etc.
 """
 import aiosmtplib
+import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
@@ -11,18 +13,27 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+RESEND_API_URL = "https://api.resend.com/emails"
+
 
 class EmailService:
-    """Modular email service with HTML templates"""
+    """Email service with Resend API and SMTP fallback"""
 
     def __init__(self):
+        # Resend settings
+        self.resend_api_key = settings.RESEND_API_KEY
+        self.resend_from_email = settings.RESEND_FROM_EMAIL
+        self.resend_from_name = settings.RESEND_FROM_NAME
+
+        # SMTP settings (fallback)
         self.smtp_host = settings.SMTP_HOST
         self.smtp_port = settings.SMTP_PORT
         self.smtp_user = settings.SMTP_USER
         self.smtp_password = settings.SMTP_PASSWORD
-        self.from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
-        self.from_name = settings.SMTP_FROM_NAME
+        self.smtp_from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USER
+        self.smtp_from_name = settings.SMTP_FROM_NAME
         self.use_tls = settings.SMTP_USE_TLS
+
         self.frontend_url = settings.FRONTEND_URL
 
     @property
@@ -30,19 +41,62 @@ class EmailService:
         """Check if email is properly configured"""
         return settings.email_enabled
 
+    @property
+    def use_resend(self) -> bool:
+        """Check if Resend API should be used"""
+        return settings.use_resend
+
     async def _send_email(self, to_email: str, subject: str, html_content: str) -> bool:
-        """Send an email using SMTP"""
+        """Send an email using Resend API or SMTP fallback"""
         if not self.is_configured:
             logger.warning(f"Email not configured. Would have sent to {to_email}: {subject}")
             return False
 
+        if self.use_resend:
+            return await self._send_via_resend(to_email, subject, html_content)
+        else:
+            return await self._send_via_smtp(to_email, subject, html_content)
+
+    async def _send_via_resend(self, to_email: str, subject: str, html_content: str) -> bool:
+        """Send email via Resend API"""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    RESEND_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {self.resend_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "from": f"{self.resend_from_name} <{self.resend_from_email}>",
+                        "to": [to_email],
+                        "subject": subject,
+                        "html": html_content,
+                        "text": self._html_to_plain(html_content),
+                    },
+                    timeout=30.0,
+                )
+
+                if response.status_code in (200, 201):
+                    data = response.json()
+                    logger.info(f"Email sent via Resend to {to_email}: {subject} (id: {data.get('id', 'unknown')})")
+                    return True
+                else:
+                    logger.error(f"Resend API error: {response.status_code} - {response.text}")
+                    return False
+
+        except Exception as e:
+            logger.error(f"Failed to send email via Resend to {to_email}: {str(e)}")
+            return False
+
+    async def _send_via_smtp(self, to_email: str, subject: str, html_content: str) -> bool:
+        """Send email via SMTP (fallback)"""
         try:
             message = MIMEMultipart("alternative")
             message["Subject"] = subject
-            message["From"] = f"{self.from_name} <{self.from_email}>"
+            message["From"] = f"{self.smtp_from_name} <{self.smtp_from_email}>"
             message["To"] = to_email
 
-            # Create plain text version
             plain_text = self._html_to_plain(html_content)
             message.attach(MIMEText(plain_text, "plain"))
             message.attach(MIMEText(html_content, "html"))
@@ -56,11 +110,11 @@ class EmailService:
                 start_tls=self.use_tls,
             )
 
-            logger.info(f"Email sent successfully to {to_email}: {subject}")
+            logger.info(f"Email sent via SMTP to {to_email}: {subject}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {str(e)}")
+            logger.error(f"Failed to send email via SMTP to {to_email}: {str(e)}")
             return False
 
     def _html_to_plain(self, html: str) -> str:
