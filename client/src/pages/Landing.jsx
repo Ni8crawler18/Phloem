@@ -457,6 +457,7 @@ export default function Landing() {
       <section id="compliance" className="section-lg" style={{ background: 'var(--color-background)' }}>
         <div className="container auto-grid-lg" style={{
           alignItems: 'center',
+          gap: '80px',
         }}>
           <div>
             <span className="code-label" style={{ marginBottom: '16px', display: 'block' }}>
@@ -504,11 +505,11 @@ export default function Landing() {
             </div>
           </div>
 
-          <div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             <img
               src="/illustration_3.png"
               alt="Compliance"
-              style={{ width: '100%', maxWidth: '480px' }}
+              style={{ width: '100%', maxWidth: '580px' }}
             />
           </div>
         </div>
