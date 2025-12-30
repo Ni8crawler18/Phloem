@@ -73,7 +73,12 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
 
-    # Email SMTP Settings
+    # Email Settings - Resend API (recommended) or SMTP fallback
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = "noreply@eigensparse.com"
+    RESEND_FROM_NAME: str = "Eigensparse"
+
+    # Legacy SMTP Settings (fallback if Resend not configured)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
@@ -91,8 +96,13 @@ class Settings(BaseSettings):
 
     @property
     def email_enabled(self) -> bool:
-        """Check if email is configured"""
-        return bool(self.SMTP_HOST and self.SMTP_USER and self.SMTP_PASSWORD)
+        """Check if email is configured (Resend or SMTP)"""
+        return bool(self.RESEND_API_KEY) or bool(self.SMTP_HOST and self.SMTP_USER and self.SMTP_PASSWORD)
+
+    @property
+    def use_resend(self) -> bool:
+        """Check if Resend API is configured (preferred over SMTP)"""
+        return bool(self.RESEND_API_KEY)
 
     class Config:
         env_file = ".env"
