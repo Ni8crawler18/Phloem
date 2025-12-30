@@ -4,6 +4,9 @@ DPDP Act & GDPR Compliant Consent Management Platform
 
 Main application entry point.
 """
+import time
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -11,8 +14,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-import time
-import logging
+from sqlalchemy import text
+
+from app.config import settings
+from app.database import init_db, get_db
+from app.routers import auth, fiduciary, purposes, consents, audit, sdk, dashboard, webhooks
+from app.routers import settings as settings_router
 
 # Configure logging
 logging.basicConfig(
@@ -21,18 +28,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from app.config import settings
-from app.database import init_db, get_db
-from app.routers import auth, fiduciary, purposes, consents, audit, sdk, dashboard, webhooks
-from app.routers import settings as settings_router
-from sqlalchemy import text
 
-# Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
-
-
-# Security Headers Middleware
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Add security headers to all responses.
+
+    Headers added:
+    - X-Frame-Options: Prevent clickjacking
+    - X-Content-Type-Options: Prevent MIME sniffing
+    - X-XSS-Protection: XSS protection for legacy browsers
+    - Referrer-Policy: Control referrer information
+    - Permissions-Policy: Disable unnecessary browser features
+    - Strict-Transport-Security: Force HTTPS (production only)
+    """
+
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
@@ -58,8 +67,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# Request Logging Middleware
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Log all incoming requests with timing information.
+
+    Logs include: method, path, status code, processing time, client IP.
+    Health check endpoints are skipped to reduce log noise.
+    """
+
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
 
@@ -80,6 +95,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         response.headers["X-Process-Time"] = f"{process_time:.3f}"
 
         return response
+
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI application
 app = FastAPI(

@@ -16,7 +16,7 @@ from app.dependencies.auth import get_fiduciary_by_api_key
 
 router = APIRouter(prefix="/api/sdk", tags=["SDK Integration"])
 
-# Rate limiter
+# Rate limiter - prevent user enumeration and abuse
 limiter = Limiter(key_func=get_remote_address)
 
 

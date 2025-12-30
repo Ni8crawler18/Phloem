@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.database import get_db
+from app.database import get_db, safe_commit
 from app.config import settings
 from app.models import User, DataFiduciary, AuditAction
 from app.schemas import (
@@ -70,7 +70,7 @@ async def register_user(
         verification_token_expires=token_expires
     )
     db.add(user)
-    db.commit()
+    safe_commit(db, "register user")
     db.refresh(user)
 
     create_audit_log(
@@ -290,7 +290,7 @@ async def register_fiduciary(
         verification_token_expires=token_expires
     )
     db.add(fiduciary)
-    db.commit()
+    safe_commit(db, "register fiduciary")
     db.refresh(fiduciary)
 
     create_audit_log(
