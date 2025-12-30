@@ -20,7 +20,8 @@ export default function FiduciaryDashboard() {
   const [loading, setLoading] = useState(true);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [newApiKey, setNewApiKey] = useState(null); // Temporarily store newly generated key
-  const [showNewKeyModal, setShowNewKeyModal] = useState(false);
+  const [regeneratingKey, setRegeneratingKey] = useState(false);
+  const [keyJustRegenerated, setKeyJustRegenerated] = useState(false);
 
   // Purpose form state
   const [showPurposeForm, setShowPurposeForm] = useState(false);
@@ -116,22 +117,26 @@ export default function FiduciaryDashboard() {
   };
 
   const regenerateApiKey = async () => {
-    if (!confirm('Are you sure? This will invalidate your current API key. The new key will only be shown once.')) return;
+    if (!confirm('Are you sure? This will invalidate your current API key.')) return;
+
+    setRegeneratingKey(true);
     try {
       const res = await fiduciaryDashboard.regenerateApiKey();
-      // Store the new key temporarily for one-time display
+      // Store the new key temporarily for display
       setNewApiKey(res.data.api_key);
-      setShowNewKeyModal(true);
+      setKeyJustRegenerated(true);
       // Refresh user data to get the new masked key
       await refreshUser();
     } catch (error) {
       alert('Failed to regenerate API key. Please try again.');
+    } finally {
+      setRegeneratingKey(false);
     }
   };
 
-  const closeNewKeyModal = () => {
-    setShowNewKeyModal(false);
-    // Clear the key from memory after modal is closed
+  const hideNewApiKey = () => {
+    setKeyJustRegenerated(false);
+    // Clear the key from memory after hiding
     setTimeout(() => setNewApiKey(null), 100);
   };
 
@@ -334,12 +339,14 @@ export default function FiduciaryDashboard() {
         background: 'var(--color-background)',
       }}>
         <span className="code-label">Loading dashboard...</span>
+        <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--color-background)' }}>
+      <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {/* Sidebar */}
       <aside style={{
         width: '280px',
@@ -1378,35 +1385,40 @@ export default function FiduciaryDashboard() {
               </p>
             </div>
 
-            {/* New API Key Modal */}
-            {showNewKeyModal && newApiKey && (
-              <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-              }}>
-                <div className="card" style={{ width: '500px', padding: '32px' }}>
-                  <h2 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Key size={20} />
-                    New API Key Generated
-                  </h2>
+            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Key size={18} />
+                Your API Key
+              </h3>
+
+              {/* Show new key after regeneration */}
+              {keyJustRegenerated && newApiKey ? (
+                <>
+                  <div style={{
+                    padding: '12px',
+                    background: 'var(--color-success-bg)',
+                    border: '1px solid var(--color-success)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '16px',
+                    fontSize: '0.875rem',
+                    color: 'var(--color-success)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}>
+                    <CheckCircle size={16} />
+                    New API key generated successfully!
+                  </div>
                   <div style={{
                     padding: '12px',
                     background: 'var(--color-warning-bg)',
                     border: '1px solid var(--color-warning)',
                     borderRadius: 'var(--radius-md)',
-                    marginBottom: '20px',
+                    marginBottom: '16px',
                     fontSize: '0.875rem',
                     color: '#92400e',
                   }}>
-                    <strong>Important:</strong> This key will only be shown once. Copy it now and store it securely.
+                    <strong>Important:</strong> Copy this key now. It will be hidden once you leave this page or click "Hide Key".
                   </div>
                   <div style={{
                     display: 'flex',
@@ -1415,82 +1427,98 @@ export default function FiduciaryDashboard() {
                     padding: '16px',
                     background: 'var(--color-surface)',
                     borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--color-border)',
-                    marginBottom: '20px',
+                    border: '2px solid var(--color-success)',
+                    marginBottom: '16px',
                   }}>
                     <code style={{
                       flex: 1,
                       fontFamily: 'var(--font-mono)',
-                      fontSize: '0.875rem',
+                      fontSize: '0.9375rem',
                       wordBreak: 'break-all',
+                      color: 'var(--color-text)',
                     }}>
                       {newApiKey}
                     </code>
                     <button
                       onClick={() => copyApiKey(newApiKey)}
+                      className="btn btn-primary btn-sm"
                       style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: apiKeyCopied ? 'var(--color-success)' : 'var(--color-text-secondary)',
-                        padding: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        whiteSpace: 'nowrap',
                       }}
-                      title="Copy"
                     >
-                      <Copy size={18} />
+                      <Copy size={14} />
+                      {apiKeyCopied ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
-                  <button
-                    onClick={closeNewKeyModal}
-                    className="btn btn-primary"
-                    style={{ width: '100%' }}
-                  >
-                    I've Copied My Key
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-              <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Key size={18} />
-                Your API Key
-              </h3>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '16px',
-                background: 'var(--color-surface)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-              }}>
-                <code style={{
-                  flex: 1,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.9375rem',
-                  wordBreak: 'break-all',
-                }}>
-                  {user?.api_key_hint || '••••••••••••••••'}
-                </code>
-              </div>
-              <p style={{
-                fontSize: '0.8125rem',
-                color: 'var(--color-text-muted)',
-                marginTop: '12px',
-              }}>
-                For security, the full API key is only shown once when generated. If you need a new key, regenerate it below.
-              </p>
-              <div style={{ marginTop: '16px' }}>
-                <button
-                  onClick={regenerateApiKey}
-                  className="btn btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <RefreshCw size={16} />
-                  Regenerate Key
-                </button>
-              </div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      onClick={hideNewApiKey}
+                      className="btn btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <Eye size={16} />
+                      Hide Key
+                    </button>
+                    <button
+                      onClick={regenerateApiKey}
+                      className="btn btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                      disabled={regeneratingKey}
+                    >
+                      <RefreshCw size={16} className={regeneratingKey ? 'spin' : ''} />
+                      {regeneratingKey ? 'Regenerating...' : 'Regenerate Again'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Show masked key (default state) */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '16px',
+                    background: 'var(--color-surface)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border)',
+                  }}>
+                    <code style={{
+                      flex: 1,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.9375rem',
+                      wordBreak: 'break-all',
+                    }}>
+                      {regeneratingKey ? (
+                        <span style={{ color: 'var(--color-text-muted)' }}>Generating new key...</span>
+                      ) : (
+                        user?.api_key_hint || '••••••••••••••••'
+                      )}
+                    </code>
+                    {regeneratingKey && <RefreshCw size={18} className="spin" color="var(--color-primary)" />}
+                  </div>
+                  <p style={{
+                    fontSize: '0.8125rem',
+                    color: 'var(--color-text-muted)',
+                    marginTop: '12px',
+                  }}>
+                    For security, the full API key is only shown once when generated. If you need a new key, regenerate it below.
+                  </p>
+                  <div style={{ marginTop: '16px' }}>
+                    <button
+                      onClick={regenerateApiKey}
+                      className="btn btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                      disabled={regeneratingKey}
+                    >
+                      <RefreshCw size={16} className={regeneratingKey ? 'spin' : ''} />
+                      {regeneratingKey ? 'Regenerating...' : 'Regenerate Key'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="card" style={{ padding: '24px' }}>
