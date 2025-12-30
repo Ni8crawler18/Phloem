@@ -1521,8 +1521,8 @@ export default function FiduciaryDashboard() {
               )}
             </div>
 
-            <div className="card" style={{ padding: '24px' }}>
-              <h3 style={{ marginBottom: '16px' }}>Integration Example</h3>
+            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginBottom: '16px' }}>JavaScript SDK</h3>
               <div style={{
                 background: '#1E293B',
                 borderRadius: 'var(--radius-md)',
@@ -1535,7 +1535,7 @@ export default function FiduciaryDashboard() {
                 <pre style={{ margin: 0 }}>{`// Check consent before processing data
 const client = Eigensparse.createClient({
   baseUrl: 'https://eigensparse-api.onrender.com/api',
-  apiKey: 'YOUR_API_KEY' // Use your regenerated API key
+  apiKey: 'YOUR_API_KEY'
 });
 
 const result = await client.checkConsent('user@example.com');
@@ -1547,6 +1547,38 @@ if (result.has_consent) {
   // Show consent widget
   client.renderWidget('#container');
 }`}</pre>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '24px' }}>
+              <h3 style={{ marginBottom: '16px' }}>cURL Examples</h3>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px', fontSize: '0.875rem' }}>
+                Test the API directly from your terminal:
+              </p>
+              <div style={{
+                background: '#1E293B',
+                borderRadius: 'var(--radius-md)',
+                padding: '20px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.8125rem',
+                color: '#E2E8F0',
+                overflow: 'auto',
+              }}>
+                <pre style={{ margin: 0 }}>{`# Get your purposes
+curl -H "X-API-Key: YOUR_API_KEY" \\
+  https://eigensparse-api.onrender.com/api/sdk/purposes
+
+# Check consent for a user
+curl -X POST https://eigensparse-api.onrender.com/api/sdk/check-consent \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"user_email": "user@example.com"}'
+
+# Check consent for specific purpose
+curl -X POST https://eigensparse-api.onrender.com/api/sdk/check-consent \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"user_email": "user@example.com", "purpose_uuid": "your-purpose-uuid"}'`}</pre>
               </div>
             </div>
           </>
