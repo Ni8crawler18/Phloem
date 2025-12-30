@@ -171,7 +171,12 @@ export default function FiduciaryDashboard() {
       });
       loadData();
     } catch (error) {
-      setFormError(error.response?.data?.detail || 'Failed to create purpose');
+      const detail = error.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        setFormError(detail.map(e => e.msg).join(', '));
+      } else {
+        setFormError(detail || 'Failed to create purpose');
+      }
     }
   };
 
