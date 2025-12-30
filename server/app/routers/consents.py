@@ -1,21 +1,25 @@
 """
 Consents Router
-Consent grant, revoke, and management endpoints
+Consent grant, revoke, and management endpoints.
+
+This module handles all consent lifecycle operations including:
+- Granting new consents (DPDP Section 6)
+- Revoking existing consents (DPDP Section 6(6))
+- Listing user consents
+- Generating consent receipts (DPDP Section 6(3))
+
+All operations are logged for audit compliance.
 """
 import json
-import io
 from datetime import datetime, timedelta
 from typing import Optional, List
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.units import inch
 
 from app.database import get_db, safe_commit
+from app.constants import ErrorMessages
 from app.models import (
     User, DataFiduciary, Purpose, Consent, ConsentReceipt,
     ConsentStatus, AuditAction
@@ -28,6 +32,7 @@ from app.schemas import (
 from app.services.consent import generate_consent_receipt
 from app.services.audit import create_audit_log
 from app.services.webhook import trigger_consent_webhooks
+from app.services.pdf import generate_consent_receipt_pdf
 from app.dependencies.auth import get_current_user
 from app.models.webhook import WebhookEvent
 
@@ -254,158 +259,75 @@ def get_consent_receipt(
 
 
 @router.get("/{uuid}/receipt/pdf")
-def get_consent_receipt_pdf(
+def download_consent_receipt_pdf(
     uuid: str,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Download consent receipt as PDF"""
+    """
+    Download consent receipt as PDF document.
+
+    Generates a legally compliant PDF receipt containing:
+    - Consent details and timestamps
+    - Data principal information
+    - Data fiduciary information
+    - Purpose and data categories
+    - HMAC cryptographic signature
+
+    Args:
+        uuid: Consent UUID to generate receipt for.
+        current_user: Authenticated user (must own the consent).
+        db: Database session.
+
+    Returns:
+        StreamingResponse with PDF file attachment.
+
+    Raises:
+        HTTPException 404: If consent or receipt not found.
+    """
+    # Fetch consent with ownership verification
     consent = db.query(Consent).filter(
         Consent.uuid == uuid,
         Consent.user_id == current_user.id
     ).first()
 
     if not consent:
-        raise HTTPException(status_code=404, detail="Consent not found")
+        raise HTTPException(status_code=404, detail=ErrorMessages.CONSENT_NOT_FOUND)
 
+    # Fetch related receipt
     receipt = db.query(ConsentReceipt).filter(
         ConsentReceipt.consent_id == consent.id
     ).first()
     if not receipt:
-        raise HTTPException(status_code=404, detail="Receipt not found")
+        raise HTTPException(status_code=404, detail=ErrorMessages.not_found("Receipt"))
 
+    # Fetch related entities
     purpose = db.query(Purpose).filter(Purpose.id == consent.purpose_id).first()
     fiduciary = db.query(DataFiduciary).filter(
         DataFiduciary.id == consent.fiduciary_id
     ).first()
 
-    # Generate PDF
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch)
-    styles = getSampleStyleSheet()
-    story = []
-
-    # Title
-    title_style = ParagraphStyle(
-        'Title',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=20,
-        textColor=colors.HexColor('#1e40af')
+    # Generate PDF using service
+    pdf_buffer = generate_consent_receipt_pdf(
+        receipt_id=receipt.receipt_id,
+        consent_uuid=consent.uuid,
+        status=consent.status.value,
+        granted_at=consent.granted_at,
+        expires_at=consent.expires_at,
+        user_name=current_user.name,
+        user_email=current_user.email,
+        fiduciary_name=fiduciary.name,
+        fiduciary_email=fiduciary.contact_email,
+        purpose_name=purpose.name,
+        purpose_description=purpose.description,
+        legal_basis=purpose.legal_basis,
+        data_categories=json.loads(purpose.data_categories),
+        retention_days=purpose.retention_period_days,
+        signature=receipt.signature
     )
-    story.append(Paragraph("CONSENT RECEIPT", title_style))
-    story.append(Paragraph("Eigensparse Consent Management System", styles['Normal']))
-    story.append(Spacer(1, 20))
-
-    # Receipt Info Table
-    data = [
-        ["Receipt ID", receipt.receipt_id],
-        ["Consent UUID", consent.uuid],
-        ["Status", consent.status.value.upper()],
-        ["Granted At", consent.granted_at.strftime("%Y-%m-%d %H:%M:%S UTC")],
-        ["Expires At", consent.expires_at.strftime("%Y-%m-%d %H:%M:%S UTC") if consent.expires_at else "N/A"],
-    ]
-
-    table = Table(data, colWidths=[2*inch, 4*inch])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('PADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-    ]))
-    story.append(table)
-    story.append(Spacer(1, 20))
-
-    # Data Principal Section
-    story.append(Paragraph("DATA PRINCIPAL", styles['Heading2']))
-    data = [
-        ["Name", current_user.name],
-        ["Email", current_user.email],
-    ]
-    table = Table(data, colWidths=[2*inch, 4*inch])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('PADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-    ]))
-    story.append(table)
-    story.append(Spacer(1, 20))
-
-    # Data Fiduciary Section
-    story.append(Paragraph("DATA FIDUCIARY", styles['Heading2']))
-    data = [
-        ["Organization", fiduciary.name],
-        ["Contact", fiduciary.contact_email],
-    ]
-    table = Table(data, colWidths=[2*inch, 4*inch])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('PADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-    ]))
-    story.append(table)
-    story.append(Spacer(1, 20))
-
-    # Purpose Section
-    story.append(Paragraph("CONSENT PURPOSE", styles['Heading2']))
-    categories = json.loads(purpose.data_categories)
-    data = [
-        ["Purpose", purpose.name],
-        ["Description", purpose.description],
-        ["Legal Basis", purpose.legal_basis],
-        ["Data Categories", ", ".join(categories)],
-        ["Retention Period", f"{purpose.retention_period_days} days"],
-    ]
-    table = Table(data, colWidths=[2*inch, 4*inch])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f1f5f9')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('PADDING', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    story.append(table)
-    story.append(Spacer(1, 20))
-
-    # Signature
-    story.append(Paragraph("CRYPTOGRAPHIC SIGNATURE (SHA-256)", styles['Heading2']))
-    sig_style = ParagraphStyle(
-        'Signature',
-        parent=styles['Normal'],
-        fontSize=8,
-        fontName='Courier',
-        backColor=colors.HexColor('#f8fafc'),
-        borderPadding=10,
-        wordWrap='CJK'
-    )
-    story.append(Paragraph(receipt.signature, sig_style))
-    story.append(Spacer(1, 20))
-
-    # Footer
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.HexColor('#64748b'),
-        alignment=1
-    )
-    story.append(Paragraph(
-        "This receipt is compliant with DPDP Act 2023 (India) and GDPR (EU).<br/>"
-        "Generated by Eigensparse Consent Management System",
-        footer_style
-    ))
-
-    doc.build(story)
-    buffer.seek(0)
 
     return StreamingResponse(
-        buffer,
+        pdf_buffer,
         media_type="application/pdf",
         headers={
             "Content-Disposition": f"attachment; filename=consent-receipt-{consent.uuid}.pdf"
