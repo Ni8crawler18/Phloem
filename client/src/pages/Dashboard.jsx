@@ -192,7 +192,7 @@ export default function Dashboard() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError('Failed to download receipt');
+      setError(err.message || 'Failed to download receipt');
     }
   };
 

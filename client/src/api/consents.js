@@ -12,24 +12,44 @@ export const consents = {
   expiring: (days = 14) => client.get('/consents/expiring/list', { params: { days } }),
   getReceipt: (uuid) => client.get(`/consents/${uuid}/receipt`),
   downloadReceiptPdf: async (uuid) => {
-    const token = localStorage.getItem('token');
+    // Use user_token specifically (not fiduciary token)
+    const token = localStorage.getItem('user_token') || localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/consents/${uuid}/receipt/pdf`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+
+    // Check if response is an error
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to download PDF');
+    }
+
     return response.blob();
   },
   exportJson: async () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('user_token') || localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/consents/export/json`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to export JSON');
+    }
+
     return response.blob();
   },
   exportCsv: async () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('user_token') || localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/consents/export/csv`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to export CSV');
+    }
+
     return response.blob();
   },
 };
